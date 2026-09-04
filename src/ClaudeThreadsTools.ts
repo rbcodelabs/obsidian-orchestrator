@@ -2,11 +2,19 @@ import type { AgentToolDefinition, ClaudeThreadsApiV1 } from './ClaudeThreadsApi
 
 export interface WatchPolicy { watch(threadId: string): void; watchAll(): void | Promise<void>; unwatch(threadId?: string): void }
 const stringProperty = (description: string) => ({ type: 'string', description });
+const booleanProperty = (description: string) => ({ type: 'boolean', description });
+const numberProperty = (description: string) => ({ type: 'number', description });
 const localTools: readonly AgentToolDefinition[] = [
   { type: 'function', name: 'ct_watch', description: 'Watch one Claude thread, or all current threads when no ID is supplied.', parameters: { type: 'object', properties: { thread_id: stringProperty('Thread ID to watch.') }, required: [] } },
   { type: 'function', name: 'ct_unwatch', description: 'Stop watching one Claude thread, or all watched threads when no ID is supplied.', parameters: { type: 'object', properties: { thread_id: stringProperty('Thread ID to stop watching.') }, required: [] } },
   { type: 'function', name: 'ct_list_orchestrators', description: 'List available portfolio and project orchestrator targets.', parameters: { type: 'object', properties: {}, required: [] } },
-  { type: 'function', name: 'ct_dispatch_orchestrator', description: 'Delegate a message to a portfolio or project orchestrator.', parameters: { type: 'object', properties: { target_id: stringProperty('Orchestrator target ID.'), message: stringProperty('Message to dispatch.') }, required: ['target_id', 'message'] } },
+  { type: 'function', name: 'ct_dispatch_orchestrator', description: 'Delegate a message to a portfolio or project orchestrator. Waits for its result by default.', parameters: { type: 'object', properties: {
+    target_id: stringProperty('Orchestrator target ID.'),
+    message: stringProperty('Message to dispatch.'),
+    wait: booleanProperty('Wait for completion and return the result (default true).'),
+    watch: booleanProperty('When wait=false, watch the target thread for voice notifications (default true).'),
+    timeout_secs: numberProperty('Seconds to wait before timing out (default 120, min 10, max 300).'),
+  }, required: ['target_id', 'message'] } },
 ];
 export interface ClaudeThreadsTools { readonly definitions: readonly AgentToolDefinition[]; readonly names: ReadonlySet<string>; execute(name: string, args: Record<string, unknown>): Promise<string> }
 
@@ -43,13 +51,30 @@ export function createClaudeThreadsTools(getApi: () => ClaudeThreadsApiV1, bridg
         if (name === 'ct_dispatch_orchestrator') {
           const targetId = String(args.target_id ?? '').trim(); const prompt = String(args.message ?? '').trim();
           if (!targetId || !prompt) return 'Error: target_id and message are required.';
+          const target = (await api.orchestrators.list()).find(candidate => candidate.id === targetId);
+          if (!target) return `Error: orchestrator target "${targetId}" was not found.`;
           const result = await api.orchestrators.dispatch({ id: targetId }, { prompt });
-          return `Dispatched to orchestrator ${targetId} (run: ${result.runId}).`;
+          if (args.wait === false) {
+            if (args.watch !== false) bridge.watch(target.threadId);
+            return `Dispatched to orchestrator ${targetId} (run: ${result.runId}). Running in the background.`;
+          }
+          return formatOrchestratorResult(await api.threads.wait(result.runId, { timeoutMs: boundedTimeoutMs(args.timeout_secs) }));
         }
         return `Error: Claude Threads tool "${name}" is unavailable.`;
       } catch (error) { return `Error: ${error instanceof Error ? error.message : String(error)}`; }
     },
   };
+}
+
+function boundedTimeoutMs(value: unknown): number {
+  return Math.min(Math.max(10, Number(value) || 120), 300) * 1_000;
+}
+
+function formatOrchestratorResult(result: Awaited<ReturnType<ClaudeThreadsApiV1['threads']['wait']>>): string {
+  if (result.status === 'timed_out') return `Timed out waiting for orchestrator run ${result.runId}.`;
+  if (result.status === 'failed') return `Orchestrator error: ${result.error.message}`;
+  if (!result.finalMessage) return `Orchestrator finished (run: ${result.runId}) with no final message.`;
+  return `Orchestrator finished. Last message: ${result.finalMessage.content.slice(0, 800)}`;
 }
 
 function addWatchOption(tool: AgentToolDefinition): AgentToolDefinition {
