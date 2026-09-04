@@ -20,6 +20,13 @@ describe('legacy Voice settings migration', () => {
     expect(readLegacy).not.toHaveBeenCalled();
   });
 
+  it('sanitizes an existing plaintext key into shared SecretStorage', async () => {
+    const setSecret = vi.fn();
+    const result = await migrateLegacyVoiceSettings({ voice: 'marin', openaiApiKey: 'sk-existing' }, { readLegacy: vi.fn(), setSecret });
+    expect(result.settings).not.toHaveProperty('openaiApiKey');
+    expect(setSecret).toHaveBeenCalledWith('openai-api-key', 'sk-existing');
+  });
+
   it.each([null, '{bad json'])('fails safely when legacy settings are absent or malformed', async (raw) => {
     const result = await migrateLegacyVoiceSettings({}, { readLegacy: vi.fn().mockResolvedValue(raw), setSecret: vi.fn() });
     expect(result.settings.legacyVoiceMigration).toBe(1);

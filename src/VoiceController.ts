@@ -1,8 +1,8 @@
 import { App, MarkdownView, Notice, TFile } from 'obsidian';
-import type VoicePlugin from './main';
+import type OrchestratorPlugin from './main';
 import { RealtimeSession, SessionStatus } from './RealtimeSession';
 import { DOCUMENT_TOOLS, executeToolCall } from './DocumentTools';
-import { CLAUDE_THREADS_TOOLS, CLAUDE_THREADS_TOOL_NAMES, executeClaudeThreadsTool } from './ClaudeThreadsTools';
+import { createClaudeThreadsTools, type ClaudeThreadsTools } from './ClaudeThreadsTools';
 import { NotificationBridge } from './NotificationBridge';
 import { OPENAI_SECRET_ID, REALTIME_MODEL } from './settings';
 import { WakeWordDetector } from './WakeWordDetector';
@@ -145,11 +145,12 @@ const VOICE_CONTROL_TOOLS = [
  * playback-end detection all live here.
  */
 export class VoiceController {
-  private plugin: VoicePlugin;
+  private plugin: OrchestratorPlugin;
   private app: App;
 
   private session: RealtimeSession | null = null;
   private notificationBridge: NotificationBridge | null = null;
+  private claudeThreadsTools: ClaudeThreadsTools | null = null;
   private wakeDetector: WakeWordDetector | null = null;
 
   public isConnected = false;
@@ -189,7 +190,7 @@ export class VoiceController {
   private disconnectPendingReason = '';
   private disconnectPendingPhrase = '';
 
-  constructor(plugin: VoicePlugin) {
+  constructor(plugin: OrchestratorPlugin) {
     this.plugin = plugin;
     this.app = plugin.app;
   }
@@ -250,27 +251,34 @@ export class VoiceController {
       this.wakeDetector = null;
     }
 
+    if (this.plugin.hasLegacyVoiceConflict()) {
+      new Notice('Orchestrator voice controls are paused while the legacy Voice plugin is active. Disable Voice, then reload Orchestrator.');
+      return;
+    }
+
     const { voice, systemPromptExtra } = this.plugin.settings;
     const apiKey = this.app.secretStorage.getSecret(OPENAI_SECRET_ID);
 
     if (!apiKey) {
-      new Notice('Voice: no OpenAI API key configured. Open Settings to add one.');
+      new Notice('Orchestrator: no OpenAI API key configured. Open Settings to add one.');
       this.syncWakeWordDetector();
       return;
     }
 
     const view       = this.lastMarkdownView;
     const docContent = this.getCurrentDocContent();
-    const claudeThreadsAvailable = this.isClaudeThreadsAvailable();
+    const threadsApi = this.plugin.threadsApi.current();
+    const claudeThreadsAvailable = threadsApi !== null;
 
-    if (claudeThreadsAvailable) {
+    if (threadsApi) {
       this.notificationBridge = new NotificationBridge();
+      this.claudeThreadsTools = createClaudeThreadsTools(() => threadsApi, this.notificationBridge);
     }
 
     const { content: contextFilesContent, loadedCount, failedPaths } = await this.loadContextFiles();
     const systemPrompt = this.buildSystemPrompt(docContent, contextFilesContent, systemPromptExtra, claudeThreadsAvailable);
     const allTools = claudeThreadsAvailable
-      ? [...DOCUMENT_TOOLS, ...CLAUDE_THREADS_TOOLS, ...VOICE_CONTROL_TOOLS]
+      ? [...DOCUMENT_TOOLS, ...(this.claudeThreadsTools?.definitions ?? []), ...VOICE_CONTROL_TOOLS]
       : [...DOCUMENT_TOOLS, ...VOICE_CONTROL_TOOLS];
 
     this.session = new RealtimeSession();
@@ -288,13 +296,8 @@ export class VoiceController {
             this.isConnected = true;
             this.playChime('connect');
             this.transitionTo('listening', 'connected');
-            if (this.notificationBridge && this.session) {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const ct = (this.app as any)?.plugins?.plugins?.['claude-threads'] as Record<string, unknown> | null;
-              const manager = ct?.manager as Parameters<NotificationBridge['connect']>[0] | undefined;
-              if (manager) {
-                this.notificationBridge.connect(manager, this.session, this.plugin.settings.debugLogging);
-              }
+            if (this.notificationBridge && this.session && threadsApi) {
+              this.notificationBridge.connect(threadsApi, this.session, this.plugin.settings.debugLogging);
             }
             if (view?.file) {
               const chars = docContent.length.toLocaleString();
@@ -318,6 +321,7 @@ export class VoiceController {
             if (wasConnected) this.playChime('disconnect');
             this.notificationBridge?.disconnect();
             this.notificationBridge = null;
+            this.claudeThreadsTools = null;
             this.session = null;
             this.syncWakeWordDetector();
           }
@@ -356,7 +360,7 @@ export class VoiceController {
         },
 
         onError: (msg) => {
-          new Notice(`Voice error: ${msg}`);
+          new Notice(`Orchestrator voice error: ${msg}`);
           this.emitToolEvent(`Error: ${msg}`, true);
         },
 
@@ -378,8 +382,8 @@ export class VoiceController {
             const secs = Math.min(Math.max(1, Number(args.seconds) || 5), 300);
             await new Promise((r) => setTimeout(r, secs * 1000));
             result = `Waited ${secs} second${secs !== 1 ? 's' : ''}.${args.reason ? ' ' + String(args.reason) : ''}`;
-          } else if (CLAUDE_THREADS_TOOL_NAMES.has(name)) {
-            result = await executeClaudeThreadsTool(name, args, this.app, this.notificationBridge);
+          } else if (this.claudeThreadsTools?.names.has(name)) {
+            result = await this.claudeThreadsTools.execute(name, args);
           } else {
             result = await executeToolCall(name, args, this.app, this.lastMarkdownView);
           }
@@ -402,6 +406,9 @@ export class VoiceController {
     if (this.isConnected) this.playChime('disconnect');
     this.session?.disconnect();
     this.session = null;
+    this.notificationBridge?.disconnect();
+    this.notificationBridge = null;
+    this.claudeThreadsTools = null;
     this.isConnected = false;
     this.currentActivity = 'listening';
     this.emitActivity();
@@ -548,7 +555,7 @@ export class VoiceController {
       this.wakeDetector = null;
     }
 
-    if (!wakeWordEnabled || this.isConnected || this.plugin.wakeDetectorSuspended) {
+    if (!wakeWordEnabled || this.isConnected || this.plugin.wakeDetectorSuspended || this.plugin.hasLegacyVoiceConflict()) {
       this.emitStatus(this.currentStatus);
       return;
     }
@@ -586,7 +593,7 @@ export class VoiceController {
     } catch (err) {
       (downloadNotice as Notice | null)?.hide();
       downloadNotice = null;
-      new Notice('Voice: wake word model download failed — check your internet connection.');
+      new Notice('Orchestrator: wake word model download failed — check your internet connection.');
       console.error('[Voice] wake word start failed:', err);
     }
     this.emitStatus(this.currentStatus);
@@ -619,6 +626,9 @@ export class VoiceController {
     this.wakeDetector = null;
     this.session?.disconnect();
     this.session = null;
+    this.notificationBridge?.disconnect();
+    this.notificationBridge = null;
+    this.claudeThreadsTools = null;
     this.isConnected = false;
     this.statusListeners = [];
     this.transcriptListeners = [];
@@ -758,9 +768,8 @@ export class VoiceController {
     return this.lastMarkdownView.editor.getValue();
   }
 
-  private isClaudeThreadsAvailable(): boolean {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return !!((this.app as any)?.plugins?.plugins?.['claude-threads']);
+  handleThreadsUnavailable(): void {
+    this.notificationBridge?.disconnect(false);
   }
 
   private async loadContextFiles(): Promise<{
@@ -871,10 +880,10 @@ export class VoiceController {
       case 'ct_get_thread':      return `Reading thread${args.thread_id ? ` · ${String(args.thread_id).slice(0, 8)}` : ''}…`;
       case 'ct_list_threads':    return args.status && args.status !== 'all' ? `Listing ${String(args.status)} threads…` : 'Listing threads…';
       case 'ct_open_thread':     return `Opening thread · ${String(args.thread_id ?? '').slice(0, 8)}…`;
-      case 'ct_close_thread':    return args.thread_id ? `Closing thread · ${String(args.thread_id).slice(0, 8)}…` : 'Closing active thread…';
-      case 'ct_get_active_thread': return 'Reading active thread…';
       case 'ct_watch':           return args.thread_id ? `Watching thread · ${String(args.thread_id).slice(0, 8)}…` : 'Watching all threads…';
       case 'ct_unwatch':         return args.thread_id ? `Stopped watching · ${String(args.thread_id).slice(0, 8)}…` : 'Stopped watching all threads…';
+      case 'ct_list_orchestrators': return 'Listing orchestrators…';
+      case 'ct_dispatch_orchestrator': return `Dispatching to orchestrator · ${String(args.target_id ?? '').slice(0, 24)}…`;
       case 'voice_disconnect':   return 'Disconnect requested…';
       case 'voice_wait':         return `Waiting ${Number(args.seconds) || 5}s…`;
       default:                   return `${name}…`;
@@ -926,12 +935,12 @@ export class VoiceController {
         return `Listed ${n} thread${n !== '1' ? 's' : ''}`;
       }
       case 'ct_open_thread':       return isError ? 'Open thread failed' : 'Opened thread';
-      case 'ct_close_thread':      return isError ? 'Close thread failed' : 'Thread closed';
-      case 'ct_get_active_thread': return isError ? 'Read active thread failed' : 'Read active thread';
       case 'ct_watch':
         return isError ? 'Watch failed' : (args.thread_id ? `Watching · ${String(args.thread_id).slice(0, 8)}` : 'Watching all threads');
       case 'ct_unwatch':
         return isError ? 'Unwatch failed' : (args.thread_id ? `Stopped watching · ${String(args.thread_id).slice(0, 8)}` : 'Stopped all notifications');
+      case 'ct_list_orchestrators': return isError ? 'List orchestrators failed' : 'Listed orchestrators';
+      case 'ct_dispatch_orchestrator': return isError ? 'Orchestrator dispatch failed' : 'Dispatched to orchestrator';
       case 'voice_disconnect': return 'Disconnect requested · awaiting grace period';
       case 'voice_wait':       return result;
       default:                 return isError ? `${name} failed` : name;

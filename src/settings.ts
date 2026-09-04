@@ -1,5 +1,5 @@
 import { AbstractInputSuggest, App, Modal, Notice, PluginSettingTab, SecretComponent, Setting, TFile } from 'obsidian';
-import type VoicePlugin from './main';
+import type OrchestratorPlugin from './main';
 import { isWakeWordAvailable } from './WakeWordDetector';
 import { EnrollmentModal } from './EnrollmentModal';
 
@@ -35,6 +35,7 @@ export interface VoiceSettings {
   wakeWordThreshold: number;
   /** Voice templates from enrollment (top-3 averaged embedding vectors, each 96 floats). */
   enrollmentEmbeddings: number[][] | null;
+  legacyVoiceMigration?: 1;
 }
 
 export const DEFAULT_SETTINGS: Omit<VoiceSettings, 'openaiApiKey'> = {
@@ -59,7 +60,7 @@ function maskOpenAiKey(key: string | null | undefined): string {
 
 /** Modal for securely entering a new OpenAI API key. */
 class OpenAiKeyModal extends Modal {
-  constructor(app: App, private settingTab: VoiceSettingTab) {
+  constructor(app: App, private settingTab: OrchestratorSettingTab) {
     super(app);
   }
 
@@ -137,10 +138,10 @@ class VaultFileSuggest extends AbstractInputSuggest<TFile> {
   }
 }
 
-export class VoiceSettingTab extends PluginSettingTab {
-  plugin: VoicePlugin;
+export class OrchestratorSettingTab extends PluginSettingTab {
+  plugin: OrchestratorPlugin;
 
-  constructor(app: App, plugin: VoicePlugin) {
+  constructor(app: App, plugin: OrchestratorPlugin) {
     super(app, plugin);
     this.plugin = plugin;
   }
@@ -149,7 +150,7 @@ export class VoiceSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    containerEl.createEl('h2', { text: 'Voice Settings' });
+    containerEl.createEl('h2', { text: 'Orchestrator Voice Settings' });
 
     // ── OpenAI API Key ────────────────────────────────────────────────────
     {
@@ -308,7 +309,7 @@ export class VoiceSettingTab extends PluginSettingTab {
     new Setting(containerEl)
       .setName('Enable wake word')
       .setDesc(
-        'When enabled and the Voice panel is open, the plugin listens for "hey obsidian" ' +
+        'When enabled and the Orchestrator voice panel is open, the plugin listens for "hey obsidian" ' +
         'and auto-connects when it hears it. Uses a locally-trained ONNX model — ' +
         'no audio leaves your device.',
       )

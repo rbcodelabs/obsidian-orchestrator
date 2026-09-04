@@ -6,7 +6,11 @@ function setup() {
   const execute = vi.fn().mockResolvedValue('bundle-result');
   const api = {
     apiVersion: 1, generation: 'g1', capabilities: [],
-    agentTools: { createBundle: vi.fn(() => ({ tools: [{ type: 'function', name: 'ct_list_threads', description: 'list', parameters: {} }], execute })) },
+    agentTools: { createBundle: vi.fn(() => ({ tools: [
+      { type: 'function', name: 'ct_list_threads', description: 'list', parameters: {} },
+      { type: 'function', name: 'ct_send_message', description: 'send', parameters: { type: 'object', properties: {} } },
+      { type: 'function', name: 'ct_new_thread', description: 'new', parameters: { type: 'object', properties: {} } },
+    ], execute })) },
     orchestrators: {
       list: vi.fn().mockResolvedValue([{ id: 'portfolio', kind: 'portfolio', threadId: 't1', title: 'Portfolio' }]),
       dispatch: vi.fn().mockResolvedValue({ runId: 'run-1' }),
@@ -32,6 +36,18 @@ describe('public Claude Threads tool adapter', () => {
     await tools.execute('ct_unwatch', { thread_id: 't1' });
     expect(bridge.watch).toHaveBeenCalledWith('t1');
     expect(bridge.unwatch).toHaveBeenCalledWith('t1');
+  });
+
+  it('preserves background auto-watch for send and new-thread tools', async () => {
+    const { execute, bridge, tools } = setup();
+    execute.mockResolvedValueOnce('Message sent to thread t1. Running in the background.');
+    await tools.execute('ct_send_message', { thread_id: 't1', message: 'go', wait: false });
+    execute.mockResolvedValueOnce('New thread started (id: t2). Running in the background.');
+    await tools.execute('ct_new_thread', { message: 'go', wait: false });
+    expect(bridge.watch).toHaveBeenCalledWith('t1');
+    expect(bridge.watch).toHaveBeenCalledWith('t2');
+    const send = tools.definitions.find(tool => tool.name === 'ct_send_message');
+    expect((send?.parameters.properties as Record<string, unknown>)).toHaveProperty('watch');
   });
 
   it('lists and dispatches high-level orchestrator targets', async () => {

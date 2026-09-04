@@ -170,7 +170,7 @@ export async function executeToolCall(
     const noteBlock = `\n\n> [!NOTE] Voice Note: ${timestamp}\n> ${text.replace(/\n/g, '\n> ')}`;
     const current = editor.getValue();
     editor.setValue(current + noteBlock);
-    new Notice('Voice: appended note');
+    new Notice('Orchestrator: appended note');
     return `Appended note at ${timestamp}`;
   }
 
@@ -178,7 +178,7 @@ export async function executeToolCall(
     if (!editor) return 'Error: no document is currently open.';
     const text = String(args.text ?? '');
     editor.replaceSelection(text);
-    new Notice('Voice: inserted text at cursor');
+    new Notice('Orchestrator: inserted text at cursor');
     return 'Inserted text at cursor position.';
   }
 
@@ -186,7 +186,7 @@ export async function executeToolCall(
     if (!editor) return 'Error: no document is currently open.';
     const content = String(args.content ?? '');
     editor.setValue(content);
-    new Notice('Voice: replaced document content');
+    new Notice('Orchestrator: replaced document content');
     return 'Document replaced successfully.';
   }
 
@@ -252,12 +252,12 @@ export async function executeToolCall(
       });
       if (existingLeaf) {
         app.workspace.revealLeaf(existingLeaf);
-        new Notice(`Voice: switched to ${file.name}`);
+        new Notice(`Orchestrator: switched to ${file.name}`);
         return `Switched to already-open ${file.path}`;
       }
       const leaf = app.workspace.getLeaf('tab');
       await leaf.openFile(file);
-      new Notice(`Voice: opened ${file.name}`);
+      new Notice(`Orchestrator: opened ${file.name}`);
       return `Opened ${file.path}`;
     } catch (e) {
       return `Error opening file: ${e instanceof Error ? e.message : String(e)}`;
@@ -295,7 +295,7 @@ export async function executeToolCall(
         const leaf = app.workspace.getLeaf('tab');
         await leaf.openFile(file);
       }
-      new Notice(`Voice: created ${file.name}`);
+      new Notice(`Orchestrator: created ${file.name}`);
       return `Created ${notePath}${shouldOpen ? ' and opened it' : ''}`;
     } catch (e) {
       return `Error creating document: ${e instanceof Error ? e.message : String(e)}`;

@@ -43,6 +43,14 @@ describe('ClaudeThreadsApiClient', () => {
     expect(h.app.plugins.getPlugin).toHaveBeenCalledWith('claude-threads');
   });
 
+  it('supports the Obsidian-compatible plugin map when getPlugin is unavailable', () => {
+    const published = api();
+    const h = host(null);
+    const app = { plugins: { plugins: { 'claude-threads': { api: { v1: published } } } }, workspace: h.workspace };
+    const client = new ClaudeThreadsApiClient(app); client.start();
+    expect(client.current()).toBe(published);
+  });
+
   it('rejects missing and version-incompatible APIs with a useful public error', () => {
     const missing = new ClaudeThreadsApiClient(host(null).app); missing.start();
     expect(() => missing.requireApi()).toThrowError(ThreadsApiUnavailableError);

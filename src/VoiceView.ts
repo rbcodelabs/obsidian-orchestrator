@@ -1,5 +1,5 @@
 import { ItemView, MarkdownView, WorkspaceLeaf } from 'obsidian';
-import type VoicePlugin from './main';
+import type OrchestratorPlugin from './main';
 import type { SessionStatus } from './RealtimeSession';
 import type {
   ActivityInfo,
@@ -8,7 +8,7 @@ import type {
   TranscriptLine,
 } from './VoiceController';
 
-export const VOICE_VIEW_TYPE = 'obsidian-voice:panel';
+export const ORCHESTRATOR_VOICE_VIEW_TYPE = 'obsidian-orchestrator:voice-panel';
 
 /**
  * Thin observer of VoiceController. Owns NO session state — just subscribes
@@ -17,7 +17,7 @@ export const VOICE_VIEW_TYPE = 'obsidian-voice:panel';
  * which lives on the controller (plugin-level singleton).
  */
 export class VoiceView extends ItemView {
-  private plugin: VoicePlugin;
+  private plugin: OrchestratorPlugin;
 
   // UI elements
   private statusDot!: HTMLElement;
@@ -37,13 +37,13 @@ export class VoiceView extends ItemView {
   // Unsubscribe functions returned by controller.on*
   private unsubs: Array<() => void> = [];
 
-  constructor(leaf: WorkspaceLeaf, plugin: VoicePlugin) {
+  constructor(leaf: WorkspaceLeaf, plugin: OrchestratorPlugin) {
     super(leaf);
     this.plugin = plugin;
   }
 
-  getViewType(): string { return VOICE_VIEW_TYPE; }
-  getDisplayText(): string { return 'Voice'; }
+  getViewType(): string { return ORCHESTRATOR_VOICE_VIEW_TYPE; }
+  getDisplayText(): string { return 'Orchestrator'; }
   getIcon(): string { return 'mic'; }
 
   async onOpen(): Promise<void> {
