@@ -38,6 +38,23 @@ describe('plugin data reader', () => {
     )).resolves.toBe('{"voice":"cedar"}');
   });
 
+  it('falls back to the Geode filesystem when adapter.read exists but rejects', async () => {
+    const basePath = await mkdtemp(join(tmpdir(), 'threads-orchestrator-reader-'));
+    temporaryDirectories.push(basePath);
+    const relativePath = '.geode/plugins/obsidian-voice/data.json';
+    const pluginDirectory = join(basePath, '.geode', 'plugins', 'obsidian-voice');
+    await mkdir(pluginDirectory, { recursive: true });
+    await writeFile(join(pluginDirectory, 'data.json'), '{"voice":"alloy"}', 'utf8');
+
+    await expect(readAdapterText(
+      {
+        read: vi.fn().mockRejectedValue(new TypeError('adapter.read is not supported')),
+        getBasePath: () => basePath,
+      },
+      relativePath,
+    )).resolves.toBe('{"voice":"alloy"}');
+  });
+
   it('returns null when a Geode sibling data file is missing', async () => {
     const basePath = await mkdtemp(join(tmpdir(), 'threads-orchestrator-reader-'));
     temporaryDirectories.push(basePath);
