@@ -64,7 +64,7 @@ export class EnrollmentModal extends Modal {
     contentEl.empty();
     const loadingEl = contentEl.createEl('p', { text: 'Starting up…', cls: 'voice-enroll-loading' });
 
-    this.detector = new WakeWordDetector(
+    const detector = this.detector = new WakeWordDetector(
       modelDir,
       () => { /* no-op — enrollment doesn't trigger connection */ },
       this.plugin.settings.debugLogging,
@@ -73,14 +73,20 @@ export class EnrollmentModal extends Modal {
     );
 
     try {
-      await this.detector.startEnrollment();
+      await detector.startEnrollment();
     } catch (err) {
+      detector.stopEnrollment();
+      this.detector = null;
+      if (this.aborted) return;
       contentEl.empty();
-      contentEl.createEl('p', { text: `Could not access microphone: ${err}`, cls: 'voice-enroll-error' });
+      contentEl.createEl('p', { text: `Could not start wake-word calibration: ${err}`, cls: 'voice-enroll-error' });
       return;
     }
 
-    if (this.aborted) return;
+    if (this.aborted) {
+      detector.stopEnrollment();
+      return;
+    }
 
     contentEl.empty();
     const currentEl = contentEl.createDiv({ cls: 'voice-enroll-current' });

@@ -36,10 +36,8 @@ const WAKE_WORD_ASSETS = [
   { src: resolveModel(path.join(OWW_RESOURCES, 'melspectrogram.onnx'),  'melspectrogram.onnx'),  dest: 'melspectrogram.onnx'  },
   { src: resolveModel(path.join(OWW_RESOURCES, 'embedding_model.onnx'), 'embedding_model.onnx'), dest: 'embedding_model.onnx' },
   { src: resolveModel(path.join(TRAINING_OUTPUT, 'hey_obsidian.onnx'),  'hey_obsidian.onnx'),    dest: 'hey_obsidian.onnx'    },
-  // WASM runtime — both the binary and the Emscripten JS glue must be present
-  // so onnxruntime-web can import them via file:// URLs (set via wasmPaths).
+  // The WASM binary is cached at runtime; the JS factory is bundled into main.js.
   { src: path.join(ORT_WASM_DIR, 'ort-wasm-simd-threaded.wasm'), dest: 'ort-wasm-simd-threaded.wasm' },
-  { src: path.join(ORT_WASM_DIR, 'ort-wasm-simd-threaded.mjs'),  dest: 'ort-wasm-simd-threaded.mjs'  },
 ];
 
 function copyWakeWordAssets(destDir) {
@@ -60,24 +58,16 @@ const ctx = await esbuild.context({
   // Node.js build (ort.node.min.mjs).  The Node build calls
   // createRequire(import.meta.url) at module init time; import.meta.url
   // becomes undefined when esbuild emits CJS, causing an immediate crash.
-  // The WASM build has no createRequire and works fine with wasmBinary.
+  // The bundled WASM build embeds its JS factory and uses wasmBinary without
+  // dynamic blob imports, which Geode's CSP blocks.
   alias: {
-    'onnxruntime-web': path.resolve(__dirname, 'node_modules/onnxruntime-web/dist/ort.wasm.min.mjs'),
+    'onnxruntime-web': path.resolve(__dirname, 'node_modules/onnxruntime-web/dist/ort.wasm.bundle.min.mjs'),
   },
   // import.meta.url is undefined in bundled CJS; provide a harmless fallback
   // so onnxruntime-web's URL-resolution helpers return undefined gracefully
   // instead of throwing. wasmBinary bypasses URL-based WASM loading anyway.
   define: {
     'import.meta.url': JSON.stringify(''),
-    // Inline the Emscripten JS glue at build time so it is always available
-    // inside main.js regardless of what files BRAT installs.  The content is
-    // wrapped in a Blob → blob: URL by loadModels(), exactly as before, but
-    // without any disk read that could fail on iCloud-evicted or missing files.
-    '__ORT_MJS_CONTENT__': JSON.stringify(
-      fs.existsSync(path.join(ORT_WASM_DIR, 'ort-wasm-simd-threaded.mjs'))
-        ? fs.readFileSync(path.join(ORT_WASM_DIR, 'ort-wasm-simd-threaded.mjs'), 'utf8')
-        : ''
-    ),
   },
   external: [
     'obsidian',

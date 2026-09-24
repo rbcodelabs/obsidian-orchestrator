@@ -55,6 +55,8 @@ Do not operate both voice controllers at once. If legacy `obsidian-voice` is loa
 
 Without calibration the default threshold (0.75) works for many users; calibration gives better accuracy in noisy environments or if you're getting false triggers.
 
+The wake-word runtime is bundled with the plugin. Hosts that block AudioWorklet modules (including Geode 0.22.7) use buffered Web Audio capture instead, without weakening the host's security policy. This fallback runs PCM capture on the renderer thread, so heavy UI activity can affect timing. Calibration startup errors include their underlying cause; a model-loading failure does not necessarily mean microphone permission was denied.
+
 ## Usage
 
 **Manual:** Click the mic icon in the ribbon (or use your hotkey) to open the Orchestrator voice panel, then click **Connect**.
@@ -111,5 +113,7 @@ Requires `ws` (already listed as a devDependency — run `npm install` first).
 ## Development
 
 Run `npx tsc --noEmit`, `npm test`, and `npm run build` from the repository root. The build script resolves entry points and output relative to the current working directory. Version tags publish release assets through GitHub Actions.
+
+For an installed-Geode calibration smoke test, build first, then run `scripts/test-geode-wake.mjs` with `GEODE_EXECUTABLE` pointing to the desktop binary and `PLAYWRIGHT_PACKAGE` pointing to a package.json whose installation provides `@playwright/test`. The test uses an isolated vault/profile, real ONNX models and synthetic microphone input; it does not test speech accuracy or access your actual microphone. It captures a screenshot in `docs/qa/`.
 
 Version 0.1.0 delegates to the existing Portfolio/Project orchestrators in Agent Threads. Moving their policy, identity, and persistent state into this plugin remains a later phase.

@@ -7,7 +7,7 @@ describe('Orchestrator package identity', () => {
     const manifest = JSON.parse(readFileSync(resolve('manifest.json'), 'utf8'));
     const pkg = JSON.parse(readFileSync(resolve('package.json'), 'utf8'));
     const versions = JSON.parse(readFileSync(resolve('versions.json'), 'utf8'));
-    expect(manifest).toMatchObject({ id: 'obsidian-orchestrator', name: 'Orchestrator', version: '0.1.1' });
+    expect(manifest).toMatchObject({ id: 'obsidian-orchestrator', name: 'Orchestrator', version: '0.1.2' });
     expect(manifest.description.toLowerCase()).toContain('voice');
     expect(pkg).toMatchObject({ name: 'obsidian-orchestrator', version: manifest.version });
     expect(versions[manifest.version]).toBe(manifest.minAppVersion);

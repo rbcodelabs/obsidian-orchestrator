@@ -13,14 +13,11 @@
  */
 
 import * as ort from 'onnxruntime-web';
+import { attachAudioCapture } from './AudioCapture';
 // requestUrl is Obsidian's CORS-safe HTTP client — it operates at the OS /
 // Electron network level and is not subject to the CORS policy that blocks
 // window.fetch() when called from the app://obsidian.md origin.
 import { requestUrl } from 'obsidian';
-
-// Inlined at build time by esbuild define — contains the Emscripten JS glue
-// for ort-wasm-simd-threaded.mjs so no disk read is required at runtime.
-declare const __ORT_MJS_CONTENT__: string;
 
 // ── constants matching the Python training pipeline ────────────────────────
 const SAMPLE_RATE = 16000;
@@ -45,7 +42,7 @@ export class WakeWordDetector {
   // Audio infrastructure
   private audioCtx: AudioContext | null = null;
   private mediaStream: MediaStream | null = null;
-  private workletNode: AudioWorkletNode | null = null;
+  private audioCapture: { disconnect(): void } | null = null;
   private inferenceTimer: ReturnType<typeof setInterval> | null = null;
   private inferenceRunning = false;
 
@@ -104,7 +101,7 @@ export class WakeWordDetector {
    */
   stopEnrollment(): void {
     if (this.inferenceTimer) { clearInterval(this.inferenceTimer); this.inferenceTimer = null; }
-    this.workletNode?.disconnect(); this.workletNode = null;
+    this.audioCapture?.disconnect(); this.audioCapture = null;
     if (this.mediaStream) { this.mediaStream.getTracks().forEach(t => t.stop()); this.mediaStream = null; }
     if (this.audioCtx) { this.audioCtx.close(); this.audioCtx = null; }
   }
@@ -172,9 +169,9 @@ export class WakeWordDetector {
       clearInterval(this.inferenceTimer);
       this.inferenceTimer = null;
     }
-    if (this.workletNode) {
-      this.workletNode.disconnect();
-      this.workletNode = null;
+    if (this.audioCapture) {
+      this.audioCapture.disconnect();
+      this.audioCapture = null;
     }
     if (this.mediaStream) {
       for (const track of this.mediaStream.getTracks()) track.stop();
@@ -223,14 +220,10 @@ export class WakeWordDetector {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const fs = require('fs') as typeof import('fs');
 
-    // The Emscripten JS glue (.mjs, ~24 KB) is inlined into main.js at build
-    // time via esbuild define → __ORT_MJS_CONTENT__.  This avoids any disk read
-    // for a file that BRAT does not install and that iCloud may evict.
-    // Obsidian's Electron renderer blocks file:// imports; a blob: URL is fine.
-    const mjsBlobUrl = URL.createObjectURL(
-      new Blob([__ORT_MJS_CONTENT__], { type: 'application/javascript' }),
-    );
-    (ort.env.wasm as any).wasmPaths = { mjs: mjsBlobUrl };
+    // Use ONNX's embedded JS factory (ort.wasm.bundle), not a blob module:
+    // Geode's CSP disallows blob scripts. Single-threaded wasmBinary loading
+    // requires no module URL, worker, or relaxation of the host's policy.
+    ort.env.wasm.wasmPaths = undefined;
 
     // The WASM binary (~12 MB) is downloaded once and cached to the plugin
     // directory by ensureAssets().  Read it from the local cache here.
@@ -283,7 +276,7 @@ export class WakeWordDetector {
     // Always pulls from whichever release is tagged "latest" on GitHub.
     const GH = 'https://github.com/rbcodelabs/obsidian-voice/releases/latest/download';
 
-    // .mjs is inlined into main.js at build time via __ORT_MJS_CONTENT__ — no
+    // The JS factory is bundled into main.js — no
     // disk copy needed.  Only the binary WASM and the three ONNX models are cached.
     const assets: Array<{ url: string; file: string; minSize: number }> = [
       { url: `${CDN}/ort-wasm-simd-threaded.wasm`, file: 'ort-wasm-simd-threaded.wasm', minSize: 10_000_000 },
@@ -375,30 +368,7 @@ export class WakeWordDetector {
       console.log(`[WakeWord] AudioContext sample rate: ${this.audioCtx.sampleRate} Hz ✓`);
     }
 
-    // Unique name per instance to avoid "already registered" errors on re-start.
-    const processorName = `wake-pcm-${Date.now()}`;
-    const workletSrc = `
-class _PCMCapture extends AudioWorkletProcessor {
-  process(inputs) {
-    const ch = inputs[0]?.[0];
-    if (ch?.length) this.port.postMessage(ch);
-    return true;
-  }
-}
-registerProcessor('${processorName}', _PCMCapture);
-`;
-    const blob = new Blob([workletSrc], { type: 'application/javascript' });
-    const blobUrl = URL.createObjectURL(blob);
-    await this.audioCtx.audioWorklet.addModule(blobUrl);
-    URL.revokeObjectURL(blobUrl);
-
-    const source = this.audioCtx.createMediaStreamSource(this.mediaStream);
-    this.workletNode = new AudioWorkletNode(this.audioCtx, processorName);
-    this.workletNode.port.onmessage = (evt: MessageEvent<Float32Array>) => {
-      this.appendSamples(evt.data);
-    };
-    // Capture only — do NOT connect to destination.
-    source.connect(this.workletNode);
+    this.audioCapture = await attachAudioCapture(this.audioCtx, this.mediaStream, samples => this.appendSamples(samples));
   }
 
   private appendSamples(chunk: Float32Array): void {
