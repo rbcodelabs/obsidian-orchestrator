@@ -1,7 +1,7 @@
 {
-  "name": "obsidian-voice",
-  "version": "0.4.3",
-  "description": "Talk with your documents using OpenAI Realtime Voice",
+  "name": "obsidian-orchestrator",
+  "version": "0.1.0",
+  "description": "Voice-first orchestration for Claude agents and Obsidian documents",
   "main": "dist/main.js",
   "scripts": {
     "build": "node esbuild.config.mjs",

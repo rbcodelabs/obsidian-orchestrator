@@ -1,0 +1,34 @@
+export type PublicErrorCode = 'PLUGIN_UNAVAILABLE' | 'THREAD_NOT_FOUND' | 'RUN_NOT_FOUND' | 'RUN_FAILED' | 'RUN_INTERRUPTED' | 'ORCHESTRATOR_NOT_FOUND' | 'INVALID_ARGUMENT';
+export type ThreadStatus = 'waiting' | 'active' | 'error' | 'archived' | 'reconnecting';
+export interface PublicError { readonly code: PublicErrorCode; readonly message: string }
+export interface MessageSnapshot { readonly id: string; readonly role: 'user' | 'assistant' | 'compact' | 'notice'; readonly content: string; readonly timestamp: number }
+export interface ThreadSummary { readonly id: string; readonly title: string; readonly status: ThreadStatus; readonly reviewed: boolean; readonly cwd?: string; readonly projectId?: string; readonly agentHarness: 'claude' | 'codex'; readonly createdAt: number; readonly updatedAt: number; readonly isRunning: boolean; readonly messageCount: number }
+export interface ThreadSnapshot extends ThreadSummary { readonly messages: readonly MessageSnapshot[] }
+export interface ThreadQuery { readonly projectId?: string | null; readonly status?: ThreadStatus; readonly limit?: number }
+export interface CreateThreadInput { readonly title?: string; readonly cwd?: string; readonly projectId?: string; readonly agentHarness?: 'claude' | 'codex' }
+export interface SendInput { readonly prompt: string }
+export interface WaitOptions { readonly timeoutMs?: number }
+export type RunResult =
+  | { readonly status: 'completed'; readonly runId: string; readonly threadId: string; readonly finalMessage?: MessageSnapshot }
+  | { readonly status: 'failed'; readonly runId: string; readonly threadId: string; readonly error: PublicError }
+  | { readonly status: 'timed_out'; readonly runId: string; readonly threadId: string };
+export type PublicThreadEvent =
+  | { readonly kind: 'run.started'; readonly threadId: string; readonly runId: string; readonly at: number }
+  | { readonly kind: 'message.completed'; readonly threadId: string; readonly runId?: string; readonly message: MessageSnapshot; readonly at: number }
+  | { readonly kind: 'run.completed'; readonly threadId: string; readonly runId: string; readonly finalMessage?: MessageSnapshot; readonly at: number }
+  | { readonly kind: 'run.failed'; readonly threadId: string; readonly runId: string; readonly error: PublicError; readonly at: number }
+  | { readonly kind: 'thread.removed'; readonly threadId: string; readonly at: number };
+export interface Disposable { dispose(): void }
+export interface OrchestratorSnapshot { readonly id: string; readonly kind: 'portfolio' | 'project'; readonly threadId: string; readonly title: string; readonly projectId?: string }
+export interface AgentToolDefinition { readonly type: 'function'; readonly name: string; readonly description: string; readonly parameters: Readonly<Record<string, unknown>> }
+export interface AgentToolBundle { readonly tools: readonly AgentToolDefinition[]; execute(name: string, args: Record<string, unknown>): Promise<string> }
+export interface ClaudeThreadsApiV1 {
+  readonly apiVersion: 1; readonly generation: string; readonly capabilities: readonly string[];
+  readonly threads: {
+    list(query?: ThreadQuery): Promise<readonly ThreadSummary[]>; get(threadId: string): Promise<ThreadSnapshot | null>;
+    create(input: CreateThreadInput): Promise<{ readonly threadId: string }>; send(threadId: string, input: SendInput): Promise<{ readonly runId: string }>;
+    wait(runId: string, options?: WaitOptions): Promise<RunResult>; open(threadId: string): Promise<void>; subscribe(listener: (event: PublicThreadEvent) => void): Disposable;
+  };
+  readonly orchestrators: { list(): Promise<readonly OrchestratorSnapshot[]>; dispatch(target: { readonly id: string }, input: SendInput): Promise<{ readonly runId: string }> };
+  readonly agentTools: { createBundle(profile: 'voice-orchestration'): AgentToolBundle };
+}
