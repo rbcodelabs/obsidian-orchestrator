@@ -55,7 +55,7 @@ Do not operate multiple voice controllers at once. If `obsidian-orchestrator` or
 
 Without calibration the default threshold (0.75) works for many users; calibration gives better accuracy in noisy environments or if you're getting false triggers.
 
-The wake-word runtime is bundled with the plugin. Hosts that block AudioWorklet modules (including Geode 0.22.7) use buffered Web Audio capture instead, without weakening the host's security policy. This fallback runs PCM capture on the renderer thread, so heavy UI activity can affect timing. Calibration startup errors include their underlying cause; a model-loading failure does not necessarily mean microphone permission was denied.
+The wake-word runtime is bundled with the plugin. Geode desktop hosts exposing `geode.audioCaptureWorklet` use Geode's packaged PCM AudioWorklet, capturing audio off the renderer thread without permitting blob scripts. Other hosts retain the plugin's blob AudioWorklet; hosts that block it (including Geode 0.22.7), or cannot start the packaged worklet, use buffered Web Audio capture. The buffered fallback runs PCM capture on the renderer thread, so heavy UI activity can affect timing. All capture paths output silence to avoid microphone playback. This changes capture only, not the wake-word model or inference runtime. Calibration startup errors include their underlying cause; a model-loading failure does not necessarily mean microphone permission was denied.
 
 ## Usage
 
@@ -133,5 +133,7 @@ Requires `ws` (already listed as a devDependency — run `npm install` first).
 Run `npx tsc --noEmit`, `npm test`, and `npm run build` from the repository root. The build script resolves entry points and output relative to the current working directory. Version tags publish release assets through GitHub Actions.
 
 For an installed-Geode calibration smoke test, build first, then run `scripts/test-geode-wake.mjs` with `GEODE_EXECUTABLE` pointing to the desktop binary and `PLAYWRIGHT_PACKAGE` pointing to a package.json whose installation provides `@playwright/test`. The test uses an isolated vault/profile, real ONNX models and synthetic microphone input; it does not test speech accuracy or access your actual microphone. It captures a screenshot in `docs/qa/`.
+
+To verify packaged capture against a built Geode desktop checkout, run `GEODE_REPO=/path/to/geode node scripts/test-packaged-audio-worklet.mjs`. This launches an isolated profile, injects the actual capture implementation, and checks synthetic PCM delivery, repeated attachment on one AudioContext, and cleanup while rejecting blob creation, buffered fallback, and microphone access. It does not test wake-word recognition accuracy.
 
 Version 0.1.0 delegates to the existing Portfolio/Project orchestrators in Agent Threads. Moving their policy, identity, and persistent state into this plugin remains a later phase.
