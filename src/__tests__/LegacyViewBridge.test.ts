@@ -1,59 +1,84 @@
 import { describe, expect, it, vi } from 'vitest';
-import { scheduleLegacyViewBridge } from '../LegacyViewBridge';
+import { installLegacyViewBridge } from '../LegacyViewBridge';
+
+function workspaceHarness() {
+  let onReady: (() => void) | undefined;
+  return {
+    workspace: { onLayoutReady: (callback: () => void) => { onReady = callback; } },
+    ready: () => onReady?.(),
+  };
+}
 
 describe('legacy view bridge registration', () => {
-  it.each([
-    { plugins: { getPlugin: (id: string) => id === 'obsidian-orchestrator' ? {} : null } },
-    { plugins: { plugins: { 'obsidian-orchestrator': {} } } },
-  ])('does not claim the global legacy view type when the old plugin is active', (app) => {
-    const registerView = vi.fn();
-    let onReady: (() => void) | undefined;
-    scheduleLegacyViewBridge(
-      { ...app, workspace: { onLayoutReady: (callback: () => void) => { onReady = callback; } } } as never,
-      registerView,
-      vi.fn(),
-    );
-
-    onReady?.();
-
-    expect(registerView).not.toHaveBeenCalled();
-  });
-
-  it('rechecks plugin state at layout-ready time to cover later plugin loading', () => {
-    const registry: Record<string, unknown> = {};
-    const registerView = vi.fn();
-    let onReady: (() => void) | undefined;
-    scheduleLegacyViewBridge(
-      {
-        plugins: { plugins: registry },
-        workspace: { onLayoutReady: (callback: () => void) => { onReady = callback; } },
-      } as never,
-      registerView,
-      vi.fn(),
-    );
-    registry['obsidian-orchestrator'] = {};
-
-    onReady?.();
-
-    expect(registerView).not.toHaveBeenCalled();
-  });
-
-  it('registers and migrates only when the previous plugin is absent', async () => {
+  it('registers immediately before layout restoration when Obsidian proves the old plugin is disabled', async () => {
+    const harness = workspaceHarness();
     const registerView = vi.fn();
     const migrate = vi.fn().mockResolvedValue(undefined);
-    let onReady: (() => void) | undefined;
-    scheduleLegacyViewBridge(
-      {
-        plugins: { plugins: {} },
-        workspace: { onLayoutReady: (callback: () => void) => { onReady = callback; } },
-      } as never,
+    const installed = installLegacyViewBridge(
+      { plugins: { enabledPlugins: new Set() }, workspace: harness.workspace } as never,
       registerView,
       migrate,
     );
 
-    onReady?.();
-    await vi.waitFor(() => expect(migrate).toHaveBeenCalledOnce());
-
+    expect(installed).toBe(true);
     expect(registerView).toHaveBeenCalledWith('obsidian-orchestrator:voice-panel');
+    expect(migrate).not.toHaveBeenCalled();
+    harness.ready();
+    await vi.waitFor(() => expect(migrate).toHaveBeenCalledOnce());
+  });
+
+  it('does not register when Obsidian has the old plugin enabled but not loaded yet', () => {
+    const harness = workspaceHarness();
+    const registerView = vi.fn();
+    const installed = installLegacyViewBridge(
+      { plugins: { enabledPlugins: new Set(['obsidian-orchestrator']), getPlugin: vi.fn(() => null) }, workspace: harness.workspace } as never,
+      registerView,
+      vi.fn(),
+    );
+
+    expect(installed).toBe(false);
+    expect(registerView).not.toHaveBeenCalled();
+  });
+
+  it.each([true, false])('uses Geode enabled state before plugin load order resolves (%s)', (enabled) => {
+    const harness = workspaceHarness();
+    const registerView = vi.fn();
+    const installed = installLegacyViewBridge(
+      { pluginManager: { isEnabled: (id: string) => id === 'obsidian-orchestrator' && enabled }, workspace: harness.workspace } as never,
+      registerView,
+      vi.fn().mockResolvedValue(undefined),
+    );
+
+    expect(installed).toBe(!enabled);
+    expect(registerView).toHaveBeenCalledTimes(enabled ? 0 : 1);
+  });
+
+  it('does not claim the legacy type when enabled state cannot be established', () => {
+    const harness = workspaceHarness();
+    const registerView = vi.fn();
+    const installed = installLegacyViewBridge(
+      { plugins: { plugins: {} }, workspace: harness.workspace } as never,
+      registerView,
+      vi.fn(),
+    );
+
+    expect(installed).toBe(false);
+    expect(registerView).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { plugins: { getPlugin: (id: string) => id === 'obsidian-orchestrator' ? {} : null } },
+    { plugins: { plugins: { 'obsidian-orchestrator': {} } } },
+  ])('does not claim the type when the old plugin is already active', (registry) => {
+    const harness = workspaceHarness();
+    const registerView = vi.fn();
+    const installed = installLegacyViewBridge(
+      { ...registry, workspace: harness.workspace } as never,
+      registerView,
+      vi.fn(),
+    );
+
+    expect(installed).toBe(false);
+    expect(registerView).not.toHaveBeenCalled();
   });
 });

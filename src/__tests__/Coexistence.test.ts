@@ -13,6 +13,7 @@ it('checks a specific plugin in both Obsidian and Geode-compatible registry shap
   expect(isPluginActive({ plugins: { getPlugin: (id) => id === 'obsidian-orchestrator' ? {} : null } }, 'obsidian-orchestrator')).toBe(true);
   expect(isPluginActive({ plugins: { plugins: { 'obsidian-orchestrator': {} } } }, 'obsidian-orchestrator')).toBe(true);
   expect(isPluginActive({ plugins: { plugins: { 'obsidian-voice': {} } } }, 'obsidian-orchestrator')).toBe(false);
+  expect(isPluginActive({ pluginManager: { isEnabled: (id) => id === 'obsidian-orchestrator' } }, 'obsidian-orchestrator')).toBe(true);
 });
 
 it('guards both manual voice connection and wake-word microphone startup', () => {

@@ -20,7 +20,7 @@ describe('Threads Orchestrator package identity', () => {
     expect(main).toContain("id: 'open-threads-orchestrator-panel'");
     expect(main).toContain("id: 'toggle-threads-orchestrator-voice'");
     expect(main).toContain("id: 'toggle-threads-orchestrator-wake-word'");
-    expect(main).toContain('scheduleLegacyViewBridge(');
+    expect(main).toContain('installLegacyViewBridge(');
     expect(main).not.toContain('this.registerView(LEGACY_ORCHESTRATOR_VOICE_VIEW_TYPE');
     expect(main).toContain('if (this.legacyViewBridgeRegistered)');
     expect(identity).toContain("'threads-orchestrator:voice-panel'");

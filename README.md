@@ -89,7 +89,7 @@ Version 0.2.0 changes the plugin ID from `obsidian-orchestrator` to `threads-orc
 6. Rebind any custom hotkeys under the new Threads Orchestrator command names; hosts do not expose a supported hotkey-migration API.
 7. Remove the old plugin folder only after the import and voice controls are verified.
 
-If both plugin IDs are enabled, Threads Orchestrator pauses microphone and wake-word startup until the previous plugin is disabled. For one release, a saved `obsidian-orchestrator:voice-panel` workspace leaf is reopened under the new view ID and the legacy leaf is detached.
+If both plugin IDs are enabled, Threads Orchestrator pauses microphone and wake-word startup until the previous plugin is disabled. When the old plugin is disabled before Threads Orchestrator starts, a one-release bridge reopens a saved `obsidian-orchestrator:voice-panel` workspace leaf under the new view ID and detaches the legacy leaf.
 
 ## Migration from Voice 0.4.3
 

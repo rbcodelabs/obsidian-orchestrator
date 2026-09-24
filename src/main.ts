@@ -9,7 +9,7 @@ import { migrateLegacyVoiceSettings, selectSettingsSource } from './SettingsMigr
 import { assertHostCompatibility } from './HostCompatibility';
 import { migrateLegacyVoiceView } from './LegacyViewMigration';
 import { LEGACY_ORCHESTRATOR_VOICE_VIEW_TYPE } from './PluginIdentity';
-import { scheduleLegacyViewBridge } from './LegacyViewBridge';
+import { installLegacyViewBridge } from './LegacyViewBridge';
 
 export default class ThreadsOrchestratorPlugin extends Plugin {
   settings!: VoiceSettings;
@@ -49,11 +49,10 @@ export default class ThreadsOrchestratorPlugin extends Plugin {
 
     // Register the pane view.
     this.registerView(THREADS_ORCHESTRATOR_VOICE_VIEW_TYPE, (leaf) => new VoiceView(leaf, this));
-    scheduleLegacyViewBridge(
+    this.legacyViewBridgeRegistered = installLegacyViewBridge(
       this.app as never,
       (type) => {
         this.registerView(type, (leaf) => new LegacyVoiceView(leaf, this));
-        this.legacyViewBridgeRegistered = true;
       },
       () => migrateLegacyVoiceView(this.app.workspace),
     );
