@@ -29,9 +29,9 @@ Coordinate documents and Claude agents through a voice-first interface. Orchestr
 
 ## Installation
 
-Releases are available from the private [Orchestrator repository](https://github.com/rbcodelabs/obsidian-orchestrator/releases). Repository access is required.
+Releases are available from the public [Orchestrator repository](https://github.com/rbcodelabs/obsidian-orchestrator/releases).
 
-In BRAT, configure access to private repositories and add `rbcodelabs/obsidian-orchestrator`, then enable **Orchestrator** in Community plugins. For manual installation, download `main.js`, `manifest.json`, and `styles.css` from the same release into your vault's plugin directory under `obsidian-orchestrator`. Orchestrator's plugin, view, and command IDs are distinct from legacy Voice.
+In BRAT, add `rbcodelabs/obsidian-orchestrator`, then enable **Orchestrator** in Community plugins. For manual installation, download `main.js`, `manifest.json`, and `styles.css` from the same release into your vault's plugin directory under `obsidian-orchestrator`. Orchestrator's plugin, view, and command IDs are distinct from legacy Voice.
 
 Wake-word assets download on first use. The inherited ONNX models currently come from the public `rbcodelabs/obsidian-voice` release, and the version-matched WASM runtime comes from jsDelivr. Network access to both is required unless the assets are already cached. The release also includes the ONNX models for manual installation. Audio recognition runs locally after those downloads.
 
