@@ -1,4 +1,4 @@
-import { Menu, Notice, Plugin, WorkspaceLeaf } from 'obsidian';
+import { Menu, Notice, Plugin, SecretComponent, WorkspaceLeaf } from 'obsidian';
 import { VoiceView, ORCHESTRATOR_VOICE_VIEW_TYPE } from './VoiceView';
 import { VoiceController } from './VoiceController';
 import { VoiceSettings, DEFAULT_SETTINGS, OrchestratorSettingTab, OPENAI_SECRET_ID } from './settings';
@@ -6,6 +6,7 @@ import type { SessionStatus } from './RealtimeSession';
 import { ClaudeThreadsApiClient } from './ClaudeThreadsApiClient';
 import { isLegacyVoiceActive } from './Coexistence';
 import { migrateLegacyVoiceSettings } from './SettingsMigration';
+import { assertHostCompatibility } from './HostCompatibility';
 
 export default class OrchestratorPlugin extends Plugin {
   settings!: VoiceSettings;
@@ -19,6 +20,7 @@ export default class OrchestratorPlugin extends Plugin {
   private statusBarText!: HTMLElement;
 
   async onload() {
+    assertHostCompatibility(this.app, SecretComponent);
     await this.loadSettings();
 
     this.threadsApi = new ClaudeThreadsApiClient(this.app as never);

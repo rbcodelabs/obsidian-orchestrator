@@ -3,14 +3,15 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 describe('Orchestrator package identity', () => {
-  it('uses a non-colliding plugin ID and consistent 0.1.0 metadata', () => {
+  it('uses a non-colliding plugin ID and consistent release metadata', () => {
     const manifest = JSON.parse(readFileSync(resolve('manifest.json'), 'utf8'));
     const pkg = JSON.parse(readFileSync(resolve('package.json'), 'utf8'));
     const versions = JSON.parse(readFileSync(resolve('versions.json'), 'utf8'));
-    expect(manifest).toMatchObject({ id: 'obsidian-orchestrator', name: 'Orchestrator', version: '0.1.0' });
+    expect(manifest).toMatchObject({ id: 'obsidian-orchestrator', name: 'Orchestrator', version: '0.1.1' });
     expect(manifest.description.toLowerCase()).toContain('voice');
-    expect(pkg).toMatchObject({ name: 'obsidian-orchestrator', version: '0.1.0' });
-    expect(versions).toEqual({ '0.1.0': manifest.minAppVersion });
+    expect(pkg).toMatchObject({ name: 'obsidian-orchestrator', version: manifest.version });
+    expect(versions[manifest.version]).toBe(manifest.minAppVersion);
+    expect(versions['0.1.0']).toBe('1.11.4');
   });
 
   it('registers non-colliding view and command IDs', () => {

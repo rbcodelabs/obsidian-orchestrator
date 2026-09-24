@@ -1,4 +1,5 @@
-import { AbstractInputSuggest, App, Modal, Notice, PluginSettingTab, SecretComponent, Setting, TFile } from 'obsidian';
+import { App, Modal, Notice, PluginSettingTab, SecretComponent, Setting, TFile } from 'obsidian';
+import { attachVaultFilePicker } from './VaultFilePicker';
 import type OrchestratorPlugin from './main';
 import { isWakeWordAvailable } from './WakeWordDetector';
 import { EnrollmentModal } from './EnrollmentModal';
@@ -108,33 +109,6 @@ class OpenAiKeyModal extends Modal {
 
   onClose(): void {
     this.contentEl.empty();
-  }
-}
-
-/** Fuzzy file suggest for the context-files picker. */
-class VaultFileSuggest extends AbstractInputSuggest<TFile> {
-  private callback: (file: TFile) => void;
-
-  constructor(app: App, inputEl: HTMLInputElement, callback: (file: TFile) => void) {
-    super(app, inputEl);
-    this.callback = callback;
-  }
-
-  getSuggestions(query: string): TFile[] {
-    const lower = query.toLowerCase();
-    return this.app.vault.getMarkdownFiles()
-      .filter(f => f.path.toLowerCase().includes(lower))
-      .slice(0, 20);
-  }
-
-  renderSuggestion(file: TFile, el: HTMLElement): void {
-    el.createSpan({ cls: 'voice-suggest-path', text: file.path });
-  }
-
-  selectSuggestion(file: TFile, _evt: MouseEvent | KeyboardEvent): void {
-    this.callback(file);
-    this.setValue('');
-    this.close();
   }
 }
 
@@ -281,7 +255,7 @@ export class OrchestratorSettingTab extends PluginSettingTab {
         attr: { type: 'text', placeholder: 'Search and add a file…', spellcheck: 'false' },
       }) as HTMLInputElement;
 
-      new VaultFileSuggest(this.app, inputEl, async (file: TFile) => {
+      attachVaultFilePicker(this.app, inputEl, async (file: TFile) => {
         const files = this.plugin.settings.contextFiles ?? [];
         if (!files.includes(file.path)) {
           files.push(file.path);
