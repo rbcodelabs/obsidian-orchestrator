@@ -1,6 +1,6 @@
 import { App, Modal, Notice, PluginSettingTab, SecretComponent, Setting, TFile } from 'obsidian';
 import { attachVaultFilePicker } from './VaultFilePicker';
-import type OrchestratorPlugin from './main';
+import type ThreadsOrchestratorPlugin from './main';
 import { isWakeWordAvailable } from './WakeWordDetector';
 import { EnrollmentModal } from './EnrollmentModal';
 
@@ -61,7 +61,7 @@ function maskOpenAiKey(key: string | null | undefined): string {
 
 /** Modal for securely entering a new OpenAI API key. */
 class OpenAiKeyModal extends Modal {
-  constructor(app: App, private settingTab: OrchestratorSettingTab) {
+  constructor(app: App, private settingTab: ThreadsOrchestratorSettingTab) {
     super(app);
   }
 
@@ -112,10 +112,10 @@ class OpenAiKeyModal extends Modal {
   }
 }
 
-export class OrchestratorSettingTab extends PluginSettingTab {
-  plugin: OrchestratorPlugin;
+export class ThreadsOrchestratorSettingTab extends PluginSettingTab {
+  plugin: ThreadsOrchestratorPlugin;
 
-  constructor(app: App, plugin: OrchestratorPlugin) {
+  constructor(app: App, plugin: ThreadsOrchestratorPlugin) {
     super(app, plugin);
     this.plugin = plugin;
   }
@@ -124,7 +124,7 @@ export class OrchestratorSettingTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    containerEl.createEl('h2', { text: 'Orchestrator Voice Settings' });
+    containerEl.createEl('h2', { text: 'Threads Orchestrator Voice Settings' });
 
     // ── OpenAI API Key ────────────────────────────────────────────────────
     {
@@ -283,7 +283,7 @@ export class OrchestratorSettingTab extends PluginSettingTab {
     new Setting(containerEl)
       .setName('Enable wake word')
       .setDesc(
-        'When enabled and the Orchestrator voice panel is open, the plugin listens for "hey obsidian" ' +
+        'When enabled and the Threads Orchestrator voice panel is open, the plugin listens for "hey obsidian" ' +
         'and auto-connects when it hears it. Uses a locally-trained ONNX model — ' +
         'no audio leaves your device.',
       )

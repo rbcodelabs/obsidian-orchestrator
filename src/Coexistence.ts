@@ -1,5 +1,9 @@
 interface PluginRegistry { getPlugin?(id: string): unknown; plugins?: Record<string, unknown> }
-export function isLegacyVoiceActive(app: { plugins?: PluginRegistry }): boolean {
+const CONFLICTING_PLUGIN_IDS = ['obsidian-orchestrator', 'obsidian-voice'] as const;
+
+export function isConflictingVoicePluginActive(app: { plugins?: PluginRegistry }): boolean {
   const registry = app.plugins;
-  return !!(registry?.getPlugin?.('obsidian-voice') ?? registry?.plugins?.['obsidian-voice']);
+  return CONFLICTING_PLUGIN_IDS.some((id) =>
+    !!(registry?.getPlugin?.(id) ?? registry?.plugins?.[id]),
+  );
 }

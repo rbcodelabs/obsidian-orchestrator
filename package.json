@@ -1,7 +1,7 @@
 {
-  "name": "obsidian-orchestrator",
-  "version": "0.1.2",
-  "description": "Voice-first orchestration for Claude agents and Obsidian documents",
+  "name": "threads-orchestrator",
+  "version": "0.2.0",
+  "description": "Voice-first orchestration for Claude agents and documents in Obsidian or Geode",
   "main": "dist/main.js",
   "scripts": {
     "build": "node esbuild.config.mjs",

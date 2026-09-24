@@ -1,9 +1,9 @@
 {
-  "id": "obsidian-orchestrator",
-  "name": "Orchestrator",
-  "version": "0.1.2",
+  "id": "threads-orchestrator",
+  "name": "Threads Orchestrator",
+  "version": "0.2.0",
   "minAppVersion": "1.10.2",
-  "description": "Coordinate Claude agents and documents through a voice-first orchestration interface",
+  "description": "Coordinate Claude agents and documents in Obsidian or Geode through a voice-first interface",
   "author": "Rick Bowman",
   "authorUrl": "https://github.com/richardbowman",
   "isDesktopOnly": true

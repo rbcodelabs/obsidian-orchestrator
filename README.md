@@ -1,12 +1,12 @@
-# Orchestrator — Obsidian/Geode Plugin
+# Threads Orchestrator — Obsidian/Geode Plugin
 
-Coordinate documents and Claude agents through a voice-first interface. Orchestrator preserves the Voice conversation and document workflow while adding typed delegation through Claude Threads.
+Coordinate documents and Claude agents through a voice-first interface. Threads Orchestrator preserves the Voice conversation and document workflow while adding typed delegation through Claude Threads.
 
 ## Features
 
 - **Live voice conversation** with your current document as context
 - **Wake word detection** — say "hey obsidian" to connect hands-free, no button press needed. Runs a local ONNX model entirely on-device; no audio leaves your machine.
-- **Voice enrollment** — record 5 samples to calibrate the wake word to your voice and microphone (Settings → Orchestrator → Wake Word → Calibrate)
+- **Voice enrollment** — record 5 samples to calibrate the wake word to your voice and microphone (Settings → Threads Orchestrator → Wake Word → Calibrate)
 - **Silence auto-disconnect** — automatically disconnects after configurable silence (default 15s); wake word re-arms instantly so you can reconnect hands-free
 - **Document tools** the AI can use mid-conversation:
   - Read the current document
@@ -30,28 +30,28 @@ Coordinate documents and Claude agents through a voice-first interface. Orchestr
 
 ## Installation
 
-Releases are available from the public [Orchestrator repository](https://github.com/rbcodelabs/obsidian-orchestrator/releases).
+Releases are available from the public [Threads Orchestrator repository](https://github.com/rbcodelabs/threads-orchestrator/releases).
 
-In BRAT, add `rbcodelabs/obsidian-orchestrator`, then enable **Orchestrator** in Community plugins. For manual installation, download `main.js`, `manifest.json`, and `styles.css` from the same release into your vault's plugin directory under `obsidian-orchestrator`. Orchestrator's plugin, view, and command IDs are distinct from legacy Voice.
+In BRAT, add `rbcodelabs/threads-orchestrator`, then enable **Threads Orchestrator** in Community plugins. For manual installation, download `main.js`, `manifest.json`, and `styles.css` from the same release into your vault's plugin directory under `threads-orchestrator`. Threads Orchestrator's plugin, view, and command IDs are distinct from legacy Voice and the previous Obsidian Orchestrator identity.
 
 Wake-word assets download on first use. The inherited ONNX models currently come from the public `rbcodelabs/obsidian-voice` release, and the version-matched WASM runtime comes from jsDelivr. Network access to both is required unless the assets are already cached. The release also includes the ONNX models for manual installation. Audio recognition runs locally after those downloads.
 
-Do not operate both voice controllers at once. If legacy `obsidian-voice` is loaded, Orchestrator pauses manual and wake-word microphone startup and shows a notice. Disable Voice and reload Orchestrator to resume its voice controls.
+Do not operate multiple voice controllers at once. If `obsidian-orchestrator` or legacy `obsidian-voice` is loaded, Threads Orchestrator pauses manual and wake-word microphone startup and shows a notice. Disable the previous plugin and reload Threads Orchestrator to resume its voice controls.
 
 ## Setup
 
-1. Open Settings → Orchestrator
+1. Open Settings → Threads Orchestrator
 2. Click **Set API Key** and paste your OpenAI API key
 3. Choose a voice (Marin is the default)
 4. Optionally add extra system prompt instructions
-5. Click the mic icon in the ribbon (or use your hotkey) to open the Orchestrator voice panel
+5. Click the mic icon in the ribbon (or use your hotkey) to open the Threads Orchestrator voice panel
 6. Open a note, then click **Connect**
 
 ### Enabling wake word (optional)
 
-1. In Settings → Orchestrator → **Wake Word**, toggle on **Enable wake word**
+1. In Settings → Threads Orchestrator → **Wake Word**, toggle on **Enable wake word**
 2. Click **Calibrate** and say "hey obsidian" 5 times when prompted — this tunes detection to your voice and microphone
-3. Open the Orchestrator voice panel — it now listens passively and connects automatically when it hears "hey obsidian"
+3. Open the Threads Orchestrator voice panel — it now listens passively and connects automatically when it hears "hey obsidian"
 
 Without calibration the default threshold (0.75) works for many users; calibration gives better accuracy in noisy environments or if you're getting false triggers.
 
@@ -59,7 +59,7 @@ The wake-word runtime is bundled with the plugin. Hosts that block AudioWorklet 
 
 ## Usage
 
-**Manual:** Click the mic icon in the ribbon (or use your hotkey) to open the Orchestrator voice panel, then click **Connect**.
+**Manual:** Click the mic icon in the ribbon (or use your hotkey) to open the Threads Orchestrator voice panel, then click **Connect**.
 
 **Hands-free:** With wake word enabled, just say "hey obsidian" — the plugin connects and plays a short chime. After 15 seconds of silence (configurable) it disconnects automatically; say "hey obsidian" again to reconnect.
 
@@ -75,11 +75,25 @@ The status bar shows real-time session activity:
 | **Silence — 12s** | No activity; countdown to auto-disconnect |
 | **Connected** | Connected but idle (no VAD activity) |
 
-To assign a hotkey: Settings → Hotkeys → search "Toggle Orchestrator voice connection".
+To assign a hotkey: Settings → Hotkeys → search "Toggle Threads Orchestrator voice connection".
+
+## Upgrading from Obsidian Orchestrator
+
+Version 0.2.0 changes the plugin ID from `obsidian-orchestrator` to `threads-orchestrator`. GitHub redirects do not migrate plugin folders, enabled-plugin lists, BRAT or Geode updater records, saved workspace view IDs, or hotkeys.
+
+1. Back up or retain the old `obsidian-orchestrator` plugin folder so its `data.json` remains available during import.
+2. Disable **Obsidian Orchestrator**.
+3. Remove `rbcodelabs/obsidian-orchestrator` from BRAT or the equivalent Geode community-plugin tracking entry.
+4. Install `rbcodelabs/threads-orchestrator` and enable **Threads Orchestrator**.
+5. Verify that your settings were imported and that the voice panel opens normally.
+6. Rebind any custom hotkeys under the new Threads Orchestrator command names; hosts do not expose a supported hotkey-migration API.
+7. Remove the old plugin folder only after the import and voice controls are verified.
+
+If both plugin IDs are enabled, Threads Orchestrator pauses microphone and wake-word startup until the previous plugin is disabled. For one release, a saved `obsidian-orchestrator:voice-panel` workspace leaf is reopened under the new view ID and the legacy leaf is detached.
 
 ## Migration from Voice 0.4.3
 
-On its first load, when Orchestrator has no settings of its own, it best-effort imports the legacy Voice settings file. Voice choice, context files, prompts, auto-apply, wake-word configuration and enrollment, silence/grace timers, and debug preference are preserved. The shared `openai-api-key` SecretStorage entry is reused; a legacy plaintext key is moved there and never retained in Orchestrator's data. Existing Orchestrator settings always win, and missing or malformed legacy data is ignored safely.
+On its first load, Threads Orchestrator uses settings in this order: its own non-empty `data.json`, the previous `obsidian-orchestrator/data.json`, legacy `obsidian-voice/data.json`, then defaults. Voice choice, context files, prompts, auto-apply, wake-word configuration and enrollment, silence/grace timers, and debug preference are preserved. The shared `openai-api-key` SecretStorage entry is reused; a legacy plaintext key is moved there and never retained in Threads Orchestrator's data. Missing or malformed legacy data is ignored safely.
 
 Say “Archive [thread name]” or “Mark [thread name] reviewed.” On hosts advertising `threads.archive` and `threads.markReviewed`, the host-owned voice bundle supplies `ct_archive_thread` and `ct_mark_reviewed`. Orchestrator resolves exact IDs from `ct_list_threads` and asks you to clarify ambiguous names. Mark reviewed works on idle threads, saves the reviewed flag, and leaves your active tab unchanged. Archive cancels pending wakeups and persists the archive before reporting success. Running threads and Portfolio/Project orchestrators require a host confirmation dialog; the last remaining thread cannot be archived. Cancellation is shown as “Archive cancelled,” never success. Conversation retention follows Agent Threads' existing storage settings.
 

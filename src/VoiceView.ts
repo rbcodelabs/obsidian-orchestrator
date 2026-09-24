@@ -1,5 +1,5 @@
 import { ItemView, MarkdownView, WorkspaceLeaf } from 'obsidian';
-import type OrchestratorPlugin from './main';
+import type ThreadsOrchestratorPlugin from './main';
 import type { SessionStatus } from './RealtimeSession';
 import type {
   ActivityInfo,
@@ -7,8 +7,11 @@ import type {
   ToolLine,
   TranscriptLine,
 } from './VoiceController';
-
-export const ORCHESTRATOR_VOICE_VIEW_TYPE = 'obsidian-orchestrator:voice-panel';
+export { THREADS_ORCHESTRATOR_VOICE_VIEW_TYPE } from './PluginIdentity';
+import {
+  LEGACY_ORCHESTRATOR_VOICE_VIEW_TYPE,
+  THREADS_ORCHESTRATOR_VOICE_VIEW_TYPE,
+} from './PluginIdentity';
 
 /**
  * Thin observer of VoiceController. Owns NO session state — just subscribes
@@ -17,7 +20,7 @@ export const ORCHESTRATOR_VOICE_VIEW_TYPE = 'obsidian-orchestrator:voice-panel';
  * which lives on the controller (plugin-level singleton).
  */
 export class VoiceView extends ItemView {
-  private plugin: OrchestratorPlugin;
+  private plugin: ThreadsOrchestratorPlugin;
 
   // UI elements
   private statusDot!: HTMLElement;
@@ -37,13 +40,13 @@ export class VoiceView extends ItemView {
   // Unsubscribe functions returned by controller.on*
   private unsubs: Array<() => void> = [];
 
-  constructor(leaf: WorkspaceLeaf, plugin: OrchestratorPlugin) {
+  constructor(leaf: WorkspaceLeaf, plugin: ThreadsOrchestratorPlugin) {
     super(leaf);
     this.plugin = plugin;
   }
 
-  getViewType(): string { return ORCHESTRATOR_VOICE_VIEW_TYPE; }
-  getDisplayText(): string { return 'Orchestrator'; }
+  getViewType(): string { return THREADS_ORCHESTRATOR_VOICE_VIEW_TYPE; }
+  getDisplayText(): string { return 'Threads Orchestrator'; }
   getIcon(): string { return 'mic'; }
 
   async onOpen(): Promise<void> {
@@ -307,4 +310,9 @@ export class VoiceView extends ItemView {
       this.transcriptContainer.scrollTop = this.transcriptContainer.scrollHeight;
     }
   }
+}
+
+/** One-release bridge that lets the host restore and then migrate an old saved leaf. */
+export class LegacyVoiceView extends VoiceView {
+  getViewType(): string { return LEGACY_ORCHESTRATOR_VOICE_VIEW_TYPE; }
 }

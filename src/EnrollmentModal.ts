@@ -1,5 +1,5 @@
 import { Modal, App } from 'obsidian';
-import type OrchestratorPlugin from './main';
+import type ThreadsOrchestratorPlugin from './main';
 import { WakeWordDetector } from './WakeWordDetector';
 
 const NUM_SAMPLES = 5;
@@ -10,13 +10,13 @@ function sleep(ms: number): Promise<void> {
 }
 
 export class EnrollmentModal extends Modal {
-  private plugin: OrchestratorPlugin;
+  private plugin: ThreadsOrchestratorPlugin;
   private detector: WakeWordDetector | null = null;
   private aborted = false;
   private scores: number[] = [];
   private embeddings: Float32Array[] = [];
 
-  constructor(app: App, plugin: OrchestratorPlugin) {
+  constructor(app: App, plugin: ThreadsOrchestratorPlugin) {
     super(app);
     this.plugin = plugin;
   }
