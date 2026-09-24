@@ -6,7 +6,7 @@ Coordinate documents and Claude agents through a voice-first interface. Orchestr
 
 - **Live voice conversation** with your current document as context
 - **Wake word detection** — say "hey obsidian" to connect hands-free, no button press needed. Runs a local ONNX model entirely on-device; no audio leaves your machine.
-- **Voice enrollment** — record 5 samples to calibrate the wake word to your voice and microphone (Settings → Voice → Wake Word → Calibrate)
+- **Voice enrollment** — record 5 samples to calibrate the wake word to your voice and microphone (Settings → Orchestrator → Wake Word → Calibrate)
 - **Silence auto-disconnect** — automatically disconnects after configurable silence (default 15s); wake word re-arms instantly so you can reconnect hands-free
 - **Document tools** the AI can use mid-conversation:
   - Read the current document
@@ -25,11 +25,15 @@ Coordinate documents and Claude agents through a voice-first interface. Orchestr
 
 - An [OpenAI API key](https://platform.openai.com/api-keys) with Realtime API access
 - Obsidian 1.11.4 or later (desktop only)
-- Claude Threads with public API v1 enabled for agent execution (document-only voice remains available when Threads is absent)
+- Agent Threads v0.33.0 or later for agent execution (document-only voice remains available when Threads is absent)
 
 ## Installation
 
-This repository is currently local-only and has no release remote. Build it with `npm run build`, then install the generated `dist/main.js`, `dist/manifest.json`, `dist/styles.css`, and wake-word assets in an `obsidian-orchestrator` plugin directory. Orchestrator's plugin, view, and command IDs are distinct from legacy Voice, so both can be installed without registration collisions.
+Releases are available from the private [Orchestrator repository](https://github.com/rbcodelabs/obsidian-orchestrator/releases). Repository access is required.
+
+In BRAT, configure access to private repositories and add `rbcodelabs/obsidian-orchestrator`, then enable **Orchestrator** in Community plugins. For manual installation, download `main.js`, `manifest.json`, and `styles.css` from the same release into your vault's plugin directory under `obsidian-orchestrator`. Orchestrator's plugin, view, and command IDs are distinct from legacy Voice.
+
+Wake-word assets download on first use. The inherited ONNX models currently come from the public `rbcodelabs/obsidian-voice` release, and the version-matched WASM runtime comes from jsDelivr. Network access to both is required unless the assets are already cached. The release also includes the ONNX models for manual installation. Audio recognition runs locally after those downloads.
 
 Do not operate both voice controllers at once. If legacy `obsidian-voice` is loaded, Orchestrator pauses manual and wake-word microphone startup and shows a notice. Disable Voice and reload Orchestrator to resume its voice controls.
 
@@ -105,4 +109,6 @@ Requires `ws` (already listed as a devDependency — run `npm install` first).
 
 ## Development
 
-Run `npx tsc --noEmit`, `npm test`, and `npm run build` from the repository root. The build script resolves entry points and output relative to the current working directory. This local repository has no configured remote; publishing and deployment are intentionally out of scope for the initial migration.
+Run `npx tsc --noEmit`, `npm test`, and `npm run build` from the repository root. The build script resolves entry points and output relative to the current working directory. Version tags publish release assets through GitHub Actions.
+
+Version 0.1.0 delegates to the existing Portfolio/Project orchestrators in Agent Threads. Moving their policy, identity, and persistent state into this plugin remains a later phase.
