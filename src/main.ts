@@ -11,6 +11,7 @@ import { migrateLegacyVoiceView } from './LegacyViewMigration';
 import { LEGACY_ORCHESTRATOR_VOICE_VIEW_TYPE } from './PluginIdentity';
 import { installLegacyViewBridge } from './LegacyViewBridge';
 import { siblingPluginDataPath } from './PluginDataPath';
+import { readAdapterText } from './PluginDataReader';
 
 export default class ThreadsOrchestratorPlugin extends Plugin {
   settings!: VoiceSettings;
@@ -172,7 +173,7 @@ export default class ThreadsOrchestratorPlugin extends Plugin {
         configDir: (this.app.vault as typeof this.app.vault & { configDir?: string }).configDir,
       });
       if (!path) return null;
-      try { return await this.app.vault.adapter.read(path); } catch { return null; }
+      return readAdapterText(this.app.vault.adapter, path);
     };
     const selected = await selectSettingsSource(data, {
       readPreviousOrchestrator: () => readPluginData('obsidian-orchestrator'),
