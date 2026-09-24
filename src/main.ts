@@ -10,6 +10,7 @@ import { assertHostCompatibility } from './HostCompatibility';
 import { migrateLegacyVoiceView } from './LegacyViewMigration';
 import { LEGACY_ORCHESTRATOR_VOICE_VIEW_TYPE } from './PluginIdentity';
 import { installLegacyViewBridge } from './LegacyViewBridge';
+import { siblingPluginDataPath } from './PluginDataPath';
 
 export default class ThreadsOrchestratorPlugin extends Plugin {
   settings!: VoiceSettings;
@@ -166,7 +167,11 @@ export default class ThreadsOrchestratorPlugin extends Plugin {
   async loadSettings() {
     const data = await this.loadData() as Record<string, unknown> | null;
     const readPluginData = async (pluginId: string): Promise<string | null> => {
-      const path = `${this.app.vault.configDir}/plugins/${pluginId}/data.json`;
+      const path = siblingPluginDataPath(pluginId, {
+        manifestDir: this.manifest.dir,
+        configDir: (this.app.vault as typeof this.app.vault & { configDir?: string }).configDir,
+      });
+      if (!path) return null;
       try { return await this.app.vault.adapter.read(path); } catch { return null; }
     };
     const selected = await selectSettingsSource(data, {

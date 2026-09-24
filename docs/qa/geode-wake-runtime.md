@@ -9,7 +9,7 @@ The fix uses ONNX Runtime 1.26.0's official bundled WASM entry point with a cach
 ## Checks
 
 - `npx tsc --noEmit`: clean.
-- `npm test`: 115 passing tests in 15 files, including capture/error/cleanup and rename-migration regressions.
+- `npm test`: 121 passing tests in 16 files, including capture/error/cleanup and rename-migration regressions.
 - `npm run build`: passed.
 - `scripts/test-geode-wake.mjs`: installed Geode, isolated synthetic vault/profile, real ONNX runtime and all three models, synthetic oscillator microphone. Original regression failed with the exact blocked-module error before the fix.
 - Model fixture files byte-match the committed models.
