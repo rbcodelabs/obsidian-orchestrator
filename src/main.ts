@@ -9,12 +9,14 @@ import { migrateLegacyVoiceSettings, selectSettingsSource } from './SettingsMigr
 import { assertHostCompatibility } from './HostCompatibility';
 import { migrateLegacyVoiceView } from './LegacyViewMigration';
 import { LEGACY_ORCHESTRATOR_VOICE_VIEW_TYPE } from './PluginIdentity';
+import { scheduleLegacyViewBridge } from './LegacyViewBridge';
 
 export default class ThreadsOrchestratorPlugin extends Plugin {
   settings!: VoiceSettings;
   controller!: VoiceController;
   threadsApi!: ClaudeThreadsApiClient;
   wakeDetectorSuspended = false;
+  private legacyViewBridgeRegistered = false;
 
   // Status bar UI elements
   private statusBarItem!: HTMLElement;
@@ -47,12 +49,14 @@ export default class ThreadsOrchestratorPlugin extends Plugin {
 
     // Register the pane view.
     this.registerView(THREADS_ORCHESTRATOR_VOICE_VIEW_TYPE, (leaf) => new VoiceView(leaf, this));
-    this.registerView(LEGACY_ORCHESTRATOR_VOICE_VIEW_TYPE, (leaf) => new LegacyVoiceView(leaf, this));
-    this.app.workspace.onLayoutReady(() => {
-      migrateLegacyVoiceView(this.app.workspace).catch((error) => {
-        console.error('[Threads Orchestrator] legacy view migration failed:', error);
-      });
-    });
+    scheduleLegacyViewBridge(
+      this.app as never,
+      (type) => {
+        this.registerView(type, (leaf) => new LegacyVoiceView(leaf, this));
+        this.legacyViewBridgeRegistered = true;
+      },
+      () => migrateLegacyVoiceView(this.app.workspace),
+    );
 
     // Ribbon icon — opens the transcript pane.
     this.addRibbonIcon('mic', 'Threads Orchestrator — open voice panel', () => this.activateView());
@@ -128,7 +132,9 @@ export default class ThreadsOrchestratorPlugin extends Plugin {
     // Detach all Voice panel leaves on unload so Obsidian doesn't keep a
     // stale VoiceView instance alive across plugin reloads or BRAT updates.
     this.app.workspace.detachLeavesOfType(THREADS_ORCHESTRATOR_VOICE_VIEW_TYPE);
-    this.app.workspace.detachLeavesOfType(LEGACY_ORCHESTRATOR_VOICE_VIEW_TYPE);
+    if (this.legacyViewBridgeRegistered) {
+      this.app.workspace.detachLeavesOfType(LEGACY_ORCHESTRATOR_VOICE_VIEW_TYPE);
+    }
   }
 
   /** Called from the settings tab whenever wakeWordEnabled or wakeWord changes. */

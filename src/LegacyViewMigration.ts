@@ -17,5 +17,7 @@ export async function migrateLegacyVoiceView(workspace: MigratableWorkspace): Pr
   }
   workspace.revealLeaf(targetLeaf);
 
-  for (const leaf of legacyLeaves) leaf.detach();
+  for (const leaf of legacyLeaves) {
+    if (leaf !== targetLeaf) leaf.detach();
+  }
 }

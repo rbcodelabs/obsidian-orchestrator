@@ -21,6 +21,32 @@ describe('legacy workspace view migration', () => {
     expect(workspace.revealLeaf).toHaveBeenCalledWith(targetLeaf);
   });
 
+  it('keeps a legacy leaf that the host reuses as the migrated target and detaches the others', async () => {
+    const reusedLeaf = {
+      setViewState: vi.fn(async () => undefined),
+      detach: vi.fn(),
+    };
+    const staleLegacyLeaf = {
+      setViewState: vi.fn(),
+      detach: vi.fn(),
+    };
+    const workspace = {
+      getLeavesOfType: vi.fn((type: string) => type === 'obsidian-orchestrator:voice-panel'
+        ? [reusedLeaf, staleLegacyLeaf]
+        : []),
+      getRightLeaf: vi.fn(() => reusedLeaf),
+      getLeaf: vi.fn(),
+      revealLeaf: vi.fn(),
+    };
+
+    await migrateLegacyVoiceView(workspace as never);
+
+    expect(reusedLeaf.setViewState).toHaveBeenCalledWith({ type: 'threads-orchestrator:voice-panel', active: true });
+    expect(reusedLeaf.detach).not.toHaveBeenCalled();
+    expect(staleLegacyLeaf.detach).toHaveBeenCalledOnce();
+    expect(workspace.revealLeaf).toHaveBeenCalledWith(reusedLeaf);
+  });
+
   it('does nothing without a legacy view', async () => {
     const workspace = {
       getLeavesOfType: vi.fn(() => []),

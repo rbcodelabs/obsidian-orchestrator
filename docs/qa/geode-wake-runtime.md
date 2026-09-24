@@ -18,7 +18,7 @@ The fix uses ONNX Runtime 1.26.0's official bundled WASM entry point with a cach
 
 ## Visual evidence
 
-Local installed Geode 0.22.7, 1280×840, dark mode, patch based on Orchestrator 0.1.1; captured 2026-09-23. Five sample results and calibration save controls are visible. These are synthetic tones, not a speech-recognition accuracy result.
+Local installed Geode 0.22.7, 1280×840, dark mode, fresh Threads Orchestrator 0.2.0 install; refreshed 2026-09-24. Five sample results and calibration save controls are visible. These are synthetic tones, not a speech-recognition accuracy result.
 
 ![Five-sample calibration](geode-wake-calibration.png)
 
