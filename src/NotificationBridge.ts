@@ -22,9 +22,12 @@ export class NotificationBridge {
   private async handleEvent(event: PublicThreadEvent): Promise<void> {
     if (!this.watchedThreads.has(event.threadId) || !this.session || !this.api) return;
     if (event.kind === 'thread.removed' || event.kind === 'run.started') return;
+    const api = this.api;
+    const session = this.session;
     let thread: ThreadSnapshot | null = null;
-    try { thread = await this.api.threads.get(event.threadId); } catch { return; }
-    if (!thread || !this.session) return;
+    try { thread = await api.threads.get(event.threadId); } catch { return; }
+    // A lookup may finish after the voice session or watch selection changes.
+    if (!thread || this.api !== api || this.session !== session || !this.watchedThreads.has(event.threadId)) return;
     const title = thread.title || event.threadId.slice(0, 8);
     const eventMessage = event.kind === 'message.completed' ? event.message : event.kind === 'run.completed' ? event.finalMessage : undefined;
     const lastMessage = eventMessage ?? thread.messages.at(-1);

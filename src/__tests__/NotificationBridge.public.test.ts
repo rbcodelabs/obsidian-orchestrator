@@ -2,6 +2,29 @@ import { describe, expect, it, vi } from 'vitest';
 import { NotificationBridge } from '../NotificationBridge';
 import type { ClaudeThreadsApiV1, PublicThreadEvent } from '../ClaudeThreadsApiTypes';
 
+it.each(['reconnect', 'unwatch'])('drops an in-flight notification after %s', async (action) => {
+  let listener!: (event: PublicThreadEvent) => void;
+  let resolveSnapshot!: (snapshot: unknown) => void;
+  const snapshot = new Promise(resolve => { resolveSnapshot = resolve; });
+  const api = { threads: {
+    subscribe: (fn: typeof listener) => { listener = fn; return { dispose() {} }; },
+    get: () => snapshot,
+  } } as unknown as ClaudeThreadsApiV1;
+  const first = { injectNotification: vi.fn() };
+  const next = { injectNotification: vi.fn() };
+  const bridge = new NotificationBridge();
+  bridge.connect(api, first);
+  bridge.watch('t1');
+  listener({ kind: 'run.completed', threadId: 't1', runId: 'r1', at: 1 });
+  if (action === 'reconnect') bridge.connect(api, next);
+  else bridge.unwatch('t1');
+  resolveSnapshot({ id: 't1', title: 'Old result', messages: [] });
+  await snapshot;
+  await Promise.resolve();
+  expect(first.injectNotification).not.toHaveBeenCalled();
+  expect(next.injectNotification).not.toHaveBeenCalled();
+});
+
 it('subscribes to semantic events, resyncs public snapshots, and disposes idempotently', async () => {
   let listener!: (event: PublicThreadEvent) => void;
   const dispose = vi.fn();
