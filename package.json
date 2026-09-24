@@ -1,6 +1,6 @@
 {
   "name": "obsidian-orchestrator",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Voice-first orchestration for Claude agents and Obsidian documents",
   "main": "dist/main.js",
   "scripts": {

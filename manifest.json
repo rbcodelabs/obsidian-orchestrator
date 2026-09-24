@@ -1,8 +1,8 @@
 {
   "id": "obsidian-orchestrator",
   "name": "Orchestrator",
-  "version": "0.1.0",
-  "minAppVersion": "1.11.4",
+  "version": "0.1.1",
+  "minAppVersion": "1.10.2",
   "description": "Coordinate Claude agents and documents through a voice-first orchestration interface",
   "author": "Rick Bowman",
   "authorUrl": "https://github.com/richardbowman",
