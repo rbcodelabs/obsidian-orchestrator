@@ -107,5 +107,23 @@ describe('public Claude Threads tool adapter', () => {
     const names = tools.definitions.map(tool => tool.name);
     expect(names).not.toContain('ct_close_thread');
     expect(names).not.toContain('ct_get_active_thread');
+    expect(names).not.toContain('ct_archive_thread');
+    expect(names).not.toContain('ct_mark_reviewed');
+  });
+
+  it('forwards lifecycle schemas and exact outcomes from a capable host', async () => {
+    const { api, bridge } = setup();
+    const execute = vi.fn().mockResolvedValue('Archive cancelled for thread t1.');
+    vi.mocked(api.agentTools.createBundle).mockReturnValue({ tools: [
+      { type: 'function', name: 'ct_archive_thread', description: 'archive', parameters: {} },
+      { type: 'function', name: 'ct_mark_reviewed', description: 'review', parameters: {} },
+    ], execute });
+    const tools = createClaudeThreadsTools(() => api, bridge);
+    expect(tools.names.has('ct_archive_thread')).toBe(true);
+    expect(tools.names.has('ct_mark_reviewed')).toBe(true);
+    expect(await tools.execute('ct_archive_thread', { thread_id: 't1' })).toBe('Archive cancelled for thread t1.');
+    expect(execute).toHaveBeenCalledWith('ct_archive_thread', { thread_id: 't1' });
+    execute.mockRejectedValueOnce(new Error('Storage unavailable'));
+    expect(await tools.execute('ct_mark_reviewed', { thread_id: 't1' })).toBe('Error: Storage unavailable');
   });
 });

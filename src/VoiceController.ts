@@ -1,4 +1,5 @@
 import { App, MarkdownView, Notice, TFile } from 'obsidian';
+import { lifecycleInstructions, lifecycleLabel, lifecycleResult } from './ThreadLifecyclePresentation';
 import type OrchestratorPlugin from './main';
 import { RealtimeSession, SessionStatus } from './RealtimeSession';
 import { DOCUMENT_TOOLS, executeToolCall } from './DocumentTools';
@@ -849,6 +850,7 @@ export class VoiceController {
         'notification_acknowledged instead of staying silent. This resets the auto-disconnect timer ' +
         'so the session stays alive while threads are still running.';
     }
+    prompt += lifecycleInstructions(this.claudeThreadsTools?.names ?? new Set());
     if (contextFilesContent.trim()) {
       prompt += '\n\n' + contextFilesContent.trim();
     }
@@ -863,6 +865,9 @@ export class VoiceController {
   private formatToolLabel(name: string, argsJson: string): string {
     let args: Record<string, unknown> = {};
     try { args = JSON.parse(argsJson) as Record<string, unknown>; } catch { /* ok */ }
+
+    const lifecycle = lifecycleLabel(name, args);
+    if (lifecycle) return lifecycle;
 
     switch (name) {
       case 'search_vault':       return `Searching vault · "${args.query as string ?? ''}"…`;
@@ -891,6 +896,8 @@ export class VoiceController {
   }
 
   private formatToolResult(name: string, argsJson: string, result: string): string {
+    const lifecycle = lifecycleResult(name, result);
+    if (lifecycle) return lifecycle;
     let args: Record<string, unknown> = {};
     try { args = JSON.parse(argsJson) as Record<string, unknown>; } catch { /* ok */ }
 

@@ -25,6 +25,8 @@ export interface AgentToolBundle { readonly tools: readonly AgentToolDefinition[
 export interface ClaudeThreadsApiV1 {
   readonly apiVersion: 1; readonly generation: string; readonly capabilities: readonly string[];
   readonly threads: {
+    archive?(threadId: string): Promise<{ readonly status: 'archived' | 'cancelled'; readonly threadId: string }>;
+    markReviewed?(threadId: string): Promise<{ readonly threadId: string; readonly reviewed: true; readonly changed: boolean }>;
     list(query?: ThreadQuery): Promise<readonly ThreadSummary[]>; get(threadId: string): Promise<ThreadSnapshot | null>;
     create(input: CreateThreadInput): Promise<{ readonly threadId: string }>; send(threadId: string, input: SendInput): Promise<{ readonly runId: string }>;
     wait(runId: string, options?: WaitOptions): Promise<RunResult>; open(threadId: string): Promise<void>; subscribe(listener: (event: PublicThreadEvent) => void): Disposable;
