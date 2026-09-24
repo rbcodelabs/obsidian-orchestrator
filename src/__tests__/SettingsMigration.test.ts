@@ -1,9 +1,42 @@
 import { describe, expect, it, vi } from 'vitest';
-import { migrateLegacyVoiceSettings } from '../SettingsMigration';
+import { migrateLegacyVoiceSettings, selectSettingsSource } from '../SettingsMigration';
 
 const legacy = { voice: 'cedar', contextFiles: ['Notes/a.md'], systemPromptExtra: 'brief', autoApplyEdits: false, wakeWordThreshold: .6, enrollmentEmbeddings: [[1, 2]], silenceTimeoutSecs: 22, voiceDisconnectGraceSecs: 6, debugLogging: true, openaiApiKey: 'sk-secret-value' };
 
 describe('legacy Voice settings migration', () => {
+  it('uses new settings before the previous Orchestrator and Voice settings', async () => {
+    const readPreviousOrchestrator = vi.fn();
+    const readLegacyVoice = vi.fn();
+    const result = await selectSettingsSource({ voice: 'marin' }, {
+      readPreviousOrchestrator,
+      readLegacyVoice,
+    });
+
+    expect(result).toEqual({ data: { voice: 'marin' }, source: 'current' });
+    expect(readPreviousOrchestrator).not.toHaveBeenCalled();
+    expect(readLegacyVoice).not.toHaveBeenCalled();
+  });
+
+  it('uses previous Orchestrator settings before legacy Voice settings', async () => {
+    const readLegacyVoice = vi.fn();
+    const result = await selectSettingsSource({}, {
+      readPreviousOrchestrator: vi.fn().mockResolvedValue(JSON.stringify({ voice: 'cedar' })),
+      readLegacyVoice,
+    });
+
+    expect(result).toEqual({ data: { voice: 'cedar' }, source: 'previous-orchestrator' });
+    expect(readLegacyVoice).not.toHaveBeenCalled();
+  });
+
+  it('falls back safely from malformed previous Orchestrator settings to Voice settings', async () => {
+    const result = await selectSettingsSource(null, {
+      readPreviousOrchestrator: vi.fn().mockResolvedValue('{bad json'),
+      readLegacyVoice: vi.fn().mockResolvedValue(JSON.stringify({ voice: 'alloy' })),
+    });
+
+    expect(result).toEqual({ data: { voice: 'alloy' }, source: 'legacy-voice' });
+  });
+
   it('imports supported first-run settings and moves the secret without retaining or leaking it', async () => {
     const setSecret = vi.fn();
     const result = await migrateLegacyVoiceSettings({}, { readLegacy: vi.fn().mockResolvedValue(JSON.stringify(legacy)), setSecret });

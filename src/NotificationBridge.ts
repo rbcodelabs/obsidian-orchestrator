@@ -40,7 +40,7 @@ export class NotificationBridge {
       const directive = thread.isRunning ? 'Agent is STILL WORKING — narrate briefly to the user (1 short sentence), DO NOT send a ct_send_message reply yet.' : 'Agent appears idle — acknowledge to the user.';
       text = `[Thread STATUS=${status} id="${title}"] Update: ${preview}. ${directive}`;
     }
-    if (this.debug) console.debug(`[Orchestrator Bridge] event=${event.kind} thread=${event.threadId} notification=${text ? 'yes' : 'no'}`);
+    if (this.debug) console.debug(`[Threads Orchestrator Bridge] event=${event.kind} thread=${event.threadId} notification=${text ? 'yes' : 'no'}`);
     if (text) this.session.injectNotification(event.threadId, text);
   }
 }

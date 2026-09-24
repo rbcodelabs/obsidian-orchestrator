@@ -1,18 +1,24 @@
 import { Menu, Notice, Plugin, SecretComponent, WorkspaceLeaf } from 'obsidian';
-import { VoiceView, ORCHESTRATOR_VOICE_VIEW_TYPE } from './VoiceView';
+import { LegacyVoiceView, VoiceView, THREADS_ORCHESTRATOR_VOICE_VIEW_TYPE } from './VoiceView';
 import { VoiceController } from './VoiceController';
-import { VoiceSettings, DEFAULT_SETTINGS, OrchestratorSettingTab, OPENAI_SECRET_ID } from './settings';
+import { VoiceSettings, DEFAULT_SETTINGS, ThreadsOrchestratorSettingTab, OPENAI_SECRET_ID } from './settings';
 import type { SessionStatus } from './RealtimeSession';
 import { ClaudeThreadsApiClient } from './ClaudeThreadsApiClient';
-import { isLegacyVoiceActive } from './Coexistence';
-import { migrateLegacyVoiceSettings } from './SettingsMigration';
+import { isConflictingVoicePluginActive } from './Coexistence';
+import { migrateLegacyVoiceSettings, selectSettingsSource } from './SettingsMigration';
 import { assertHostCompatibility } from './HostCompatibility';
+import { migrateLegacyVoiceView } from './LegacyViewMigration';
+import { LEGACY_ORCHESTRATOR_VOICE_VIEW_TYPE } from './PluginIdentity';
+import { installLegacyViewBridge } from './LegacyViewBridge';
+import { siblingPluginDataPath } from './PluginDataPath';
+import { readAdapterText } from './PluginDataReader';
 
-export default class OrchestratorPlugin extends Plugin {
+export default class ThreadsOrchestratorPlugin extends Plugin {
   settings!: VoiceSettings;
   controller!: VoiceController;
   threadsApi!: ClaudeThreadsApiClient;
   wakeDetectorSuspended = false;
+  private legacyViewBridgeRegistered = false;
 
   // Status bar UI elements
   private statusBarItem!: HTMLElement;
@@ -36,26 +42,33 @@ export default class OrchestratorPlugin extends Plugin {
 
     // Start wake word detector once the workspace is fully ready.
     this.app.workspace.onLayoutReady(() => {
-      if (this.hasLegacyVoiceConflict()) {
-        new Notice('Orchestrator voice controls are paused because the legacy Voice plugin is active. Disable Voice, then reload Orchestrator.');
+      if (this.hasVoicePluginConflict()) {
+        new Notice('Threads Orchestrator voice controls are paused because a previous voice plugin is active. Disable Obsidian Orchestrator and Voice, then reload Threads Orchestrator.');
       } else {
         this.controller.syncWakeWordDetector();
       }
     });
 
     // Register the pane view.
-    this.registerView(ORCHESTRATOR_VOICE_VIEW_TYPE, (leaf) => new VoiceView(leaf, this));
+    this.registerView(THREADS_ORCHESTRATOR_VOICE_VIEW_TYPE, (leaf) => new VoiceView(leaf, this));
+    this.legacyViewBridgeRegistered = installLegacyViewBridge(
+      this.app as never,
+      (type) => {
+        this.registerView(type, (leaf) => new LegacyVoiceView(leaf, this));
+      },
+      () => migrateLegacyVoiceView(this.app.workspace),
+    );
 
     // Ribbon icon — opens the transcript pane.
-    this.addRibbonIcon('mic', 'Orchestrator — open voice panel', () => this.activateView());
+    this.addRibbonIcon('mic', 'Threads Orchestrator — open voice panel', () => this.activateView());
 
     // Status bar item — shows live status and opens a menu on click.
     // Exact structure from v0.4.0 — a span dot + span text inside a flex
     // container. Don't reinvent this.
     this.statusBarItem = this.addStatusBarItem();
     this.statusBarItem.addClass('voice-statusbar-item');
-    this.statusBarItem.setAttribute('aria-label', 'Orchestrator voice: click to connect / disconnect');
-    this.statusBarItem.setAttribute('title', 'Orchestrator voice: click to connect / disconnect');
+    this.statusBarItem.setAttribute('aria-label', 'Threads Orchestrator voice: click to connect / disconnect');
+    this.statusBarItem.setAttribute('title', 'Threads Orchestrator voice: click to connect / disconnect');
 
     // Use the Unicode "●" (U+25CF BLACK CIRCLE) as the dot — it has intrinsic
     // glyph size from the font, so no width/height CSS is needed. Empty spans
@@ -67,7 +80,7 @@ export default class OrchestratorPlugin extends Plugin {
     this.statusBarDot.style.marginRight = '8px';
     this.statusBarDot.style.fontSize = '1.15em';
     this.statusBarDot.style.lineHeight = '1';
-    this.statusBarText = this.statusBarItem.createSpan({ cls: 'voice-statusbar-text', text: 'Orchestrator' });
+    this.statusBarText = this.statusBarItem.createSpan({ cls: 'voice-statusbar-text', text: 'Threads Orchestrator' });
     this.statusBarText.style.marginLeft = '0';
 
     this.statusBarItem.addEventListener('click', (evt) => this.showStatusBarMenu(evt));
@@ -85,24 +98,24 @@ export default class OrchestratorPlugin extends Plugin {
 
     // Commands
     this.addCommand({
-      id: 'open-orchestrator-panel',
-      name: 'Open Orchestrator voice panel',
+      id: 'open-threads-orchestrator-panel',
+      name: 'Open Threads Orchestrator voice panel',
       callback: () => this.activateView(),
     });
 
     this.addCommand({
-      id: 'toggle-orchestrator-voice',
-      name: 'Toggle Orchestrator voice connection',
+      id: 'toggle-threads-orchestrator-voice',
+      name: 'Toggle Threads Orchestrator voice connection',
       callback: () => this.controller.toggleConnection(),
     });
 
     this.addCommand({
-      id: 'toggle-orchestrator-wake-word',
+      id: 'toggle-threads-orchestrator-wake-word',
       name: 'Toggle wake word listening',
       callback: () => this.toggleWakeWord(),
     });
 
-    this.addSettingTab(new OrchestratorSettingTab(this.app, this));
+    this.addSettingTab(new ThreadsOrchestratorSettingTab(this.app, this));
 
     // Only the focused vault window should listen for wake words.
     // Each vault is its own Electron BrowserWindow; focus/blur fire when the
@@ -119,7 +132,10 @@ export default class OrchestratorPlugin extends Plugin {
     this.threadsApi.dispose();
     // Detach all Voice panel leaves on unload so Obsidian doesn't keep a
     // stale VoiceView instance alive across plugin reloads or BRAT updates.
-    this.app.workspace.detachLeavesOfType(ORCHESTRATOR_VOICE_VIEW_TYPE);
+    this.app.workspace.detachLeavesOfType(THREADS_ORCHESTRATOR_VOICE_VIEW_TYPE);
+    if (this.legacyViewBridgeRegistered) {
+      this.app.workspace.detachLeavesOfType(LEGACY_ORCHESTRATOR_VOICE_VIEW_TYPE);
+    }
   }
 
   /** Called from the settings tab whenever wakeWordEnabled or wakeWord changes. */
@@ -141,23 +157,35 @@ export default class OrchestratorPlugin extends Plugin {
 
   async activateView() {
     const { workspace } = this.app;
-    let leaf: WorkspaceLeaf | null = workspace.getLeavesOfType(ORCHESTRATOR_VOICE_VIEW_TYPE)[0] ?? null;
+    let leaf: WorkspaceLeaf | null = workspace.getLeavesOfType(THREADS_ORCHESTRATOR_VOICE_VIEW_TYPE)[0] ?? null;
     if (!leaf) {
       leaf = workspace.getRightLeaf(false) ?? workspace.getLeaf('split', 'vertical');
-      await leaf.setViewState({ type: ORCHESTRATOR_VOICE_VIEW_TYPE, active: true });
+      await leaf.setViewState({ type: THREADS_ORCHESTRATOR_VOICE_VIEW_TYPE, active: true });
     }
     workspace.revealLeaf(leaf);
   }
 
   async loadSettings() {
     const data = await this.loadData() as Record<string, unknown> | null;
-    const migrated = await migrateLegacyVoiceSettings(data, {
-      readLegacy: async () => {
-        const path = `${this.app.vault.configDir}/plugins/obsidian-voice/data.json`;
-        try { return await this.app.vault.adapter.read(path); } catch { return null; }
-      },
-      setSecret: (id, value) => this.app.secretStorage.setSecret(id, value),
+    const readPluginData = async (pluginId: string): Promise<string | null> => {
+      const path = siblingPluginDataPath(pluginId, {
+        manifestDir: this.manifest.dir,
+        configDir: (this.app.vault as typeof this.app.vault & { configDir?: string }).configDir,
+      });
+      if (!path) return null;
+      return readAdapterText(this.app.vault.adapter, path);
+    };
+    const selected = await selectSettingsSource(data, {
+      readPreviousOrchestrator: () => readPluginData('obsidian-orchestrator'),
+      readLegacyVoice: () => readPluginData('obsidian-voice'),
     });
+    const migrated = await migrateLegacyVoiceSettings(
+      selected.source === 'legacy-voice' ? {} : selected.data,
+      {
+        readLegacy: async () => selected.source === 'legacy-voice' ? JSON.stringify(selected.data) : null,
+        setSecret: (id, value) => this.app.secretStorage.setSecret(id, value),
+      },
+    );
     await this.saveData(migrated.settings);
 
     // Clean up any garbage written by SecretComponent (stores key name, not value).
@@ -169,8 +197,8 @@ export default class OrchestratorPlugin extends Plugin {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, migrated.settings) as VoiceSettings;
   }
 
-  hasLegacyVoiceConflict(): boolean {
-    return isLegacyVoiceActive(this.app as never);
+  hasVoicePluginConflict(): boolean {
+    return isConflictingVoicePluginActive(this.app as never);
   }
 
   async saveSettings() {
@@ -204,7 +232,7 @@ export default class OrchestratorPlugin extends Plugin {
 
     menu.addItem((item) =>
       item
-        .setTitle('Open Orchestrator voice panel')
+        .setTitle('Open Threads Orchestrator voice panel')
         .setIcon('layout-panel-right')
         // Defer to the next tick so the Menu finishes closing before we
         // mutate the workspace — otherwise the leaf creation can race the
@@ -212,8 +240,8 @@ export default class OrchestratorPlugin extends Plugin {
         .onClick(() => {
           setTimeout(() => {
             this.activateView().catch((err) => {
-              console.error('[Orchestrator] activateView failed:', err);
-              new Notice('Orchestrator: failed to open voice panel — check the console.');
+              console.error('[Threads Orchestrator] activateView failed:', err);
+              new Notice('Threads Orchestrator: failed to open voice panel — check the console.');
             });
           }, 0);
         }),
@@ -254,8 +282,8 @@ export default class OrchestratorPlugin extends Plugin {
         case 'tool-running':        return 'AI working';
         case 'silence':             return `Silence — ${activity.silenceSecsLeft ?? 0}s`;
         case 'disconnect-pending':  return `Disconnect in ${activity.disconnectPendingSecsLeft ?? 0}s`;
-        case 'listening':           return 'Orchestrator · connected';
-        default:                    return 'Orchestrator · connected';
+        case 'listening':           return 'Threads Orchestrator · connected';
+        default:                    return 'Threads Orchestrator · connected';
       }
     };
     const connectedDot = (): string => {
@@ -269,10 +297,10 @@ export default class OrchestratorPlugin extends Plugin {
     };
 
     const labels: Record<SessionStatus, string> = {
-      idle:       isListening ? 'Listening…' : 'Orchestrator',
+      idle:       isListening ? 'Listening…' : 'Threads Orchestrator',
       connecting: 'Connecting…',
-      connected:  ctrl.isConnected ? connectedLabel() : 'Orchestrator',
-      error:      'Orchestrator',
+      connected:  ctrl.isConnected ? connectedLabel() : 'Threads Orchestrator',
+      error:      'Threads Orchestrator',
     };
 
     const dotMods: Record<SessionStatus, string> = {

@@ -11,12 +11,12 @@ assert.ok(process.env.GEODE_EXECUTABLE, 'Set GEODE_EXECUTABLE to the installed a
 const root = process.cwd();
 const vault = fs.mkdtempSync(path.join(os.tmpdir(), 'wake-test-vault-'));
 const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'wake-test-profile-'));
-const pluginDir = path.join(vault, '.geode/plugins/obsidian-orchestrator');
+const pluginDir = path.join(vault, '.geode/plugins/threads-orchestrator');
 fs.mkdirSync(pluginDir, { recursive: true });
 for (const file of ['main.js', 'manifest.json', 'styles.css', 'ort-wasm-simd-threaded.wasm', 'melspectrogram.onnx', 'embedding_model.onnx', 'hey_obsidian.onnx']) {
   fs.copyFileSync(path.join(root, 'dist', file), path.join(pluginDir, file));
 }
-fs.writeFileSync(path.join(vault, '.geode/plugins.json'), JSON.stringify(['obsidian-orchestrator']));
+fs.writeFileSync(path.join(vault, '.geode/plugins.json'), JSON.stringify(['threads-orchestrator']));
 fs.writeFileSync(path.join(profile, 'geode.json'), JSON.stringify({ recentVaults: [vault], lastVault: vault }));
 const env = { ...process.env, GEODE_HEADLESS: '1' };
 delete env.ELECTRON_RUN_AS_NODE;
@@ -24,7 +24,7 @@ const app = await _electron.launch({ executablePath: process.env.GEODE_EXECUTABL
 try {
   const page = await app.firstWindow();
   page.on('console', msg => { if (msg.type() === 'error') console.log('Renderer:', msg.text()); });
-  await page.waitForFunction(() => globalThis.app?.pluginManager?.isEnabled('obsidian-orchestrator'));
+  await page.waitForFunction(() => globalThis.app?.pluginManager?.isEnabled('threads-orchestrator'));
   await page.evaluate(() => {
     globalThis.testMicStreams = [];
     globalThis.testMicContexts = [];
@@ -41,7 +41,7 @@ try {
     };
     globalThis.app.commands.execute('open-settings');
   });
-  await page.locator('.vertical-tab-nav-item').filter({ hasText: /^Orchestrator$/ }).click();
+  await page.locator('.vertical-tab-nav-item').filter({ hasText: /^Threads Orchestrator$/ }).click();
   await page.getByRole('button', { name: 'Calibrate', exact: true }).click();
   await page.getByRole('button', { name: 'Start calibration', exact: true }).click();
   await page.waitForFunction(() => document.querySelector('.voice-enroll-error, .voice-enroll-counter'), undefined, { timeout: 30000 });
@@ -54,7 +54,7 @@ try {
   fs.mkdirSync(path.join(root, 'docs/qa'), { recursive: true });
   await page.screenshot({ path: path.join(root, 'docs/qa/geode-wake-calibration.png') });
   await page.getByRole('button', { name: 'Save calibration', exact: true }).click();
-  const templates = await page.evaluate(() => globalThis.app.pluginManager.getPlugin('obsidian-orchestrator').settings.enrollmentEmbeddings);
+  const templates = await page.evaluate(() => globalThis.app.pluginManager.getPlugin('threads-orchestrator').settings.enrollmentEmbeddings);
   assert.equal(templates.length, 3);
   assert.ok(templates.every(e => e.length === 96 && e.every(Number.isFinite)));
   await page.evaluate(() => {

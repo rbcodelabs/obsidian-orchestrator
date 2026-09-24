@@ -9,7 +9,7 @@ The fix uses ONNX Runtime 1.26.0's official bundled WASM entry point with a cach
 ## Checks
 
 - `npx tsc --noEmit`: clean.
-- `npm test`: 100 passing tests in 13 files, including five new capture/error/cleanup regressions.
+- `npm test`: 132 passing and 1 intentionally skipped test across 19 files (18 passed, 1 skipped), including capture/error/cleanup, lifecycle-control, and rename-migration regressions.
 - `npm run build`: passed.
 - `scripts/test-geode-wake.mjs`: installed Geode, isolated synthetic vault/profile, real ONNX runtime and all three models, synthetic oscillator microphone. Original regression failed with the exact blocked-module error before the fix.
 - Model fixture files byte-match the committed models.
@@ -18,7 +18,7 @@ The fix uses ONNX Runtime 1.26.0's official bundled WASM entry point with a cach
 
 ## Visual evidence
 
-Local installed Geode 0.22.7, 1280×840, dark mode, patch based on Orchestrator 0.1.1; captured 2026-09-23. Five sample results and calibration save controls are visible. These are synthetic tones, not a speech-recognition accuracy result.
+Local installed Geode 0.22.7, 1280×840, dark mode, fresh Threads Orchestrator 0.2.0 install; refreshed 2026-09-24. Five sample results and calibration save controls are visible. These are synthetic tones, not a speech-recognition accuracy result.
 
 ![Five-sample calibration](geode-wake-calibration.png)
 

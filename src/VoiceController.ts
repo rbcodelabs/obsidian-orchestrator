@@ -1,6 +1,6 @@
 import { App, MarkdownView, Notice, TFile } from 'obsidian';
 import { lifecycleInstructions, lifecycleLabel, lifecycleResult } from './ThreadLifecyclePresentation';
-import type OrchestratorPlugin from './main';
+import type ThreadsOrchestratorPlugin from './main';
 import { RealtimeSession, SessionStatus } from './RealtimeSession';
 import { DOCUMENT_TOOLS, executeToolCall } from './DocumentTools';
 import { createClaudeThreadsTools, type ClaudeThreadsTools } from './ClaudeThreadsTools';
@@ -146,7 +146,7 @@ const VOICE_CONTROL_TOOLS = [
  * playback-end detection all live here.
  */
 export class VoiceController {
-  private plugin: OrchestratorPlugin;
+  private plugin: ThreadsOrchestratorPlugin;
   private app: App;
 
   private session: RealtimeSession | null = null;
@@ -191,7 +191,7 @@ export class VoiceController {
   private disconnectPendingReason = '';
   private disconnectPendingPhrase = '';
 
-  constructor(plugin: OrchestratorPlugin) {
+  constructor(plugin: ThreadsOrchestratorPlugin) {
     this.plugin = plugin;
     this.app = plugin.app;
   }
@@ -252,8 +252,8 @@ export class VoiceController {
       this.wakeDetector = null;
     }
 
-    if (this.plugin.hasLegacyVoiceConflict()) {
-      new Notice('Orchestrator voice controls are paused while the legacy Voice plugin is active. Disable Voice, then reload Orchestrator.');
+    if (this.plugin.hasVoicePluginConflict()) {
+      new Notice('Threads Orchestrator voice controls are paused while a previous voice plugin is active. Disable Obsidian Orchestrator and Voice, then reload Threads Orchestrator.');
       return;
     }
 
@@ -261,7 +261,7 @@ export class VoiceController {
     const apiKey = this.app.secretStorage.getSecret(OPENAI_SECRET_ID);
 
     if (!apiKey) {
-      new Notice('Orchestrator: no OpenAI API key configured. Open Settings to add one.');
+      new Notice('Threads Orchestrator: no OpenAI API key configured. Open Settings to add one.');
       this.syncWakeWordDetector();
       return;
     }
@@ -361,7 +361,7 @@ export class VoiceController {
         },
 
         onError: (msg) => {
-          new Notice(`Orchestrator voice error: ${msg}`);
+          new Notice(`Threads Orchestrator voice error: ${msg}`);
           this.emitToolEvent(`Error: ${msg}`, true);
         },
 
@@ -556,7 +556,7 @@ export class VoiceController {
       this.wakeDetector = null;
     }
 
-    if (!wakeWordEnabled || this.isConnected || this.plugin.wakeDetectorSuspended || this.plugin.hasLegacyVoiceConflict()) {
+    if (!wakeWordEnabled || this.isConnected || this.plugin.wakeDetectorSuspended || this.plugin.hasVoicePluginConflict()) {
       this.emitStatus(this.currentStatus);
       return;
     }
@@ -594,7 +594,7 @@ export class VoiceController {
     } catch (err) {
       (downloadNotice as Notice | null)?.hide();
       downloadNotice = null;
-      new Notice('Orchestrator: wake word model download failed — check your internet connection.');
+      new Notice('Threads Orchestrator: wake word model download failed — check your internet connection.');
       console.error('[Voice] wake word start failed:', err);
     }
     this.emitStatus(this.currentStatus);
